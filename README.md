@@ -1,7 +1,6 @@
 # DoxygenWikibot
 
-A python bot running off of PyWikibot (distributed by MediaWiki) and Doxygen to convert Doxygen
-documentation into MediaWiki markup and then upload it to a given MediaWiki site.
+A python bot using PyWikibot and Doxygen to put Doxygen docs onto a MediaWiki wiki
 Licensed under the MIT License (should be included with the source code in LICENSE.txt)
 
 
