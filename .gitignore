@@ -1,5 +1,13 @@
-/tmp
-/venv
+#Site specific
 freespace_family.py
 user-config.py
 DoxyfileTest
+
+#Extra files when running
+/__pycache__
+/logs
+/tmp
+/venv
+apicache
+throttle.ctrl
+pywikibot.lwp
