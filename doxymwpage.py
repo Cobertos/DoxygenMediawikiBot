@@ -3,6 +3,8 @@ import re
 
 from bs4 import BeautifulSoup
 
+import doxymwglobal
+
 class DoxygenMediaWikiException(Exception):
     pass
     
@@ -15,24 +17,32 @@ def DoxygenHTMLExtractor(text):
     soup = BeautifulSoup(text)
     data = {}
     
+    def onlyOne(tagList, which):
+        if len(tagList) <= 0:
+            doxymwglobal.msg(doxymwglobal.msgType.warning, "No " + which + " found")
+            return None
+        elif len(tagList) > 1:
+            doxymwglobal.msg(doxymwglobal.msgType.warning, "Ambiguous " + which)
+        return tagList[0]
+    
     #Find the title
-    select = soup.select("div.header div.title")
-    if len(select) <= 0:
-        print("No title found")
+    select = onlyOne(soup.select("div.header div.title"), "title")
+    if not select:
         return None
-    elif len(select) > 1:
-        print("WARNING: Ambiguous title")
-    data["title"] = select[0].decode_contents(formatter=None) #Straight unicode
-    data["displayTitle"] = select[0].decode_contents(formatter="html") #With HTML &gt;-type entities
+    data["title"] = select.decode_contents(formatter=None) #Straight unicode
+    data["displayTitle"] = select.decode_contents(formatter="html") #With HTML &gt;-type entities
     
     #Find the contents
-    select = soup.select("div.contents")
-    if len(select) <= 0:
-        print("No contents found")
+    select = onlyOne(soup.select("div.contents"), "contents")
+    if not select:
         return None
-    elif len(select) > 1:
-        print("WARNING: Ambiguous contents")
-    data["contents"] = select[0].decode_contents(formatter="html")
+    data["contents"] = select.decode_contents(formatter="html")
+    
+    #Footer for attribution and date info
+    select = onlyOne(soup.select("address.footer"), "footer")
+    if not select:
+        return None
+    data["footer"] = select.decode_contents(formatter="html")
     
     return data
 
@@ -82,7 +92,9 @@ def DoxygenHTMLConverter(text, wikiPages):
                     break
             
             #Make an internal or external link
-            if not internalLink:
+            if not text:
+                newStr = "" #TODO: Handle lack of a.string(We only found tags,like a linked image)
+            elif not internalLink:
                 newStr = "[" + href + " " + text + "]"
             else:
                 newStr = "[[" + link + fragment + "|" + text + "]]"
@@ -101,7 +113,6 @@ def DoxygenHTMLConverter(text, wikiPages):
         imgs.append(img.attrs["src"])
         
         #Convert the image
-        #TODO: Pic how we're going to style this on the wiki, just uses default
         newStr = "[[File:" + img.attrs["src"] + "]]"
         img.replace_with(newStr)
         
@@ -113,17 +124,21 @@ def DoxygenHTMLConverter(text, wikiPages):
     return (soup.decode_contents(formatter="html"), imgs)
         
 class DoxygenMediaWikiPage(object):
-    def __init__(self):
+    def __init__(self, fp, fn, type):
         #About the file this page came from (every file is a page)
-        self.filepath = None
-        self.filename = None
+        self.filepath = fp
+        self.filename = fn
         
         #About the page itself
-        self.type = None
+        self.type = type
         self.title = None
         self.displayTitle = None
         self.contents = None
+        self.footer = None
         self.imgs = []
+        
+        #Extract all the data
+        self.extract()
     
     #Extracts all the data from the file at self.filepath
     def extract(self):
@@ -132,29 +147,88 @@ class DoxygenMediaWikiPage(object):
         #Extract the specific parts of the page for the wiki
         data = DoxygenHTMLExtractor(fp.read())
         
-        if not "title" in data or not "contents" in data:
-            raise DoxygenMediaWikiException("Not enough content in doxygen document to create MediaWiki page")
+        if not data:
+            raise DoxygenMediaWikiException("Not enough content in doxygen document to create MediaWiki page in " + self.filename)
         
         #Check for invalid characters in title, may need to use a DisplayTitle to display class properly
         fakeTitle = re.sub("[\<\>\[\]\|\{\}_#]", "_", data["title"])
-        if fakeTitle == data["title"]:
-            self.title = data["title"]
-            self.displayTitle = None #Same as title, no special characters
-        else:
+        if fakeTitle != data["title"] and doxymwglobal.config["mediaWiki_useFullDisplayTitle"]:
+            #Invalid chars and are allowed to use unrestricted display title
             self.title = fakeTitle
             self.displayTitle = data["displayTitle"]
+        else:
+            #No invalid chars OR restricted display title
+            #Just use the safe title
+            self.title = fakeTitle
         
         self.contents = data["contents"]
+        self.footer = data["footer"]
     
     #Converts all the data in this page to proper MediaWiki markup
-    def convert(self, category, wikiPages):
-        #Translate gathered data into MediaWiki markup (including links using wikiPages)
-        #Only worry about the contents having markup
-        self.contents, self.imgs = DoxygenHTMLConverter(self.contents, wikiPages)
+    def convert(self, wikiPages):
+        #Convert gathered data into MediaWiki markup (including links using wikiPages)
+        self.contents, moreImgs = DoxygenHTMLConverter(self.contents, wikiPages)
+        self.imgs += moreImgs
+        self.footer, moreImgs = DoxygenHTMLConverter(self.footer, wikiPages)
+        self.imgs += moreImgs
+    
+    #Gets the page title
+    @property
+    def mwtitle(self):
+        return doxymwglobal.config["mediaWiki_docsCategory"] + "_" + self.title
+    
+    #Gets the page contents
+    @property
+    def mwcontents(self):
+        #The full contents is made up from multiple parts:
+        #The noinclude DO NOT EDIT + link to transclusions (if they're enabled)
+        #DisplayTitle (If there is one)
+        #The actual contents of the page
+        #The category
         
-        #Add categories to the pages
-        header = "<noinclude>DO NOT EDIT: THIS IS AUTOGENERATED CONTENT<br>If you want to add data, setup transcriptions within DoxyMWBot<hr><br></noinclude>\n"
-        if self.displayTitle:
-            header += "{{DISPLAYTITLE:" + self.displayTitle + "}}"
-        self.contents = header + self.contents
-        self.contents += "\n<noinclude>[[Category:" + category + "_" + self.type + "]]</noinclude>"
+        return ("<noinclude>" +
+        "\nAUTOGENERATED CONTENT, DO NOT EDIT<br><br>" +
+        "\nAny edits made to this page will be lost upon the next running of DoxyMWBot." +
+        "\nTo add content alongside this documentation, " +
+        
+        ("edit [{{fullurl:" + self.title + "|redirect=no}} " + self.title + "] instead." if
+        doxymwglobal.config["mediaWiki_setupTransclusions"]
+        else "you must have transclusions enabled!") +
+        
+        "<br><br></noinclude>" +
+        
+        ("\n{{DISPLAYTITLE:" + self.displayTitle + "}}" if
+        self.displayTitle
+        else "") +
+        
+        "\n" + self.contents + 
+        "\n" + self.footer +
+        
+        "\n<noinclude>" +
+        "\n[[Category:" + doxymwglobal.config["mediaWiki_docsCategory"] + "_" + self.type + "]]" +
+        "\n</noinclude>"
+        )
+    
+    #Gets the transclusion page title
+    @property
+    def mwtranstitle(self):
+        if "mediaWiki_transPrefix" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transPrefix"] != "":
+            return doxymwglobal.config["mediaWiki_transPrefix"] + "_" + self.title
+        else:
+            return self.title
+    
+    #Gets the transclusion page contents
+    @property
+    def mwtranscontents(self):
+        infoText = (
+            "\n<!--"
+            "\nTo add content alongside your coding documentation, you must edit this page."
+            "\nRemove the redirect and add the text {{:" + self.mwtitle + "}} to transclude the coding documentation on this page"
+            "\nIf you choose, you can rerun DoxyMWBot to add append transclusion to every non-redirect page you have created"
+            "\n-->"
+        )
+    
+        if "mediaWiki_transCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transCategory"] != "":
+            return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText + "\n\n" + "[[Category:" + doxymwglobal.config["mediaWiki_transCategory"] + "]]"
+        else:
+            return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText
