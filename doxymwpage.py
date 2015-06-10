@@ -228,7 +228,7 @@ class DoxygenMediaWikiPage(object):
             "\n-->"
         )
     
-        if "mediaWiki_transCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transCategory"] != "":
-            return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText + "\n\n" + "[[Category:" + doxymwglobal.config["mediaWiki_transCategory"] + "]]"
+        if "mediaWiki_transclusionCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transclusionCategory"] != "":
+            return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText + "\n\n" + "[[Category:" + doxymwglobal.config["mediaWiki_transclusionCategory"] + "]]"
         else:
             return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText

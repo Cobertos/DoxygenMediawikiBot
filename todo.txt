@@ -2,7 +2,6 @@
 #Add the doxygen logo and compilation time to the footer
 #Add doxygen styles to the mediawiki common css or something
 #Add doxygen bot user description >:]
-#Better message for redirecting through documentation to edit the page with new stuff
 #Dependency on $wgRestrictDisplayTitle = false, note this and create an option to not use it
 #Have the bot add a note with which type it is on the page (file, class, interface, namespace, etc, if it's not prominent)
 #fix all the TODOS in the code
