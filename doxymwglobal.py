@@ -10,7 +10,7 @@ config["doxygen_configPath"] = "./DoxyfileTest"
 config["doxygen_tmpPath"] = "./tmp" 
 
 #MediaWiki stuff
-config["mediaWiki_docsCategory"] = "DoxygenDocs" #The category name to use for the doxygen docs
+config["mediaWiki_docsCategory"] = "DoxyMWBot_DoxygenDocs" #The category name to use for the doxygen docs
 
 #Certain MediaWiki settings an admin would have to turn on
 #Requires a custom namespace
@@ -25,8 +25,9 @@ config["mediaWiki_useFullDisplayTitle"] = True
 #The new blank page is set up with a redirect to redirect to the original content.
 #HOWEVER, you can take advantage of this by removing the redirect, adding your own content, and transcluding the original page on this page.
 config["mediaWiki_setupTransclusions"] = True
+config["mediaWiki_transclusionCategory"] = "DoxyMWBot_TransclusionDocs"
 config["mediaWiki_transclusionPrefix"] = "" #Prefix of transclusion, can be empty
-config["mediaWiki_transclusionCategory"] = "CodingDocs" #Category to add all these pages to, can be no category (to turn off)
+config["mediaWiki_transclusionExtraCategory"] = "CodingDocs" #Category to add all these pages to, can be no category (to turn off)
 
 #Program default options
 option = {}
