@@ -2,6 +2,7 @@ import sys
 from enum import Enum
 
 #Configuration options
+#These are assumed static at runtime
 config = {}
 
 #Doxygen related path info
@@ -14,9 +15,12 @@ config["mediaWiki_docsCategory"] = "DoxyMWBot_DoxygenDocs" #The category name to
 
 #Certain MediaWiki settings an admin would have to turn on
 #Requires a custom namespace
-config["mediaWiki_useNamespace"] = False
-config["mediaWiki_namespaceName"] = ""
+#NOT IMPLEMENTED
+#config["mediaWiki_useNamespace"] = False
+#config["mediaWiki_namespaceName"] = ""
 
+#Invalid characters (like < and > for C# generics) will be substituted with some other char
+#Unrestricting display title allows us to change the chars and resubstitute them back in with a {{DISPLAYTITLE:_}} magic word
 #Requires $wgRestrictDisplayTitle to be False
 config["mediaWiki_useFullDisplayTitle"] = True
 
@@ -27,9 +31,10 @@ config["mediaWiki_useFullDisplayTitle"] = True
 config["mediaWiki_setupTransclusions"] = True
 config["mediaWiki_transclusionCategory"] = "DoxyMWBot_TransclusionDocs"
 config["mediaWiki_transclusionPrefix"] = "" #Prefix of transclusion, can be empty
-config["mediaWiki_transclusionExtraCategory"] = "CodingDocs" #Category to add all these pages to, can be no category (to turn off)
+config["mediaWiki_transclusionExternalCategory"] = "CodingDocs" #Category to add all these pages to, can be no category (to turn off)
 
 #Program default options
+#Change at run time
 option = {}
 option["command"] = None
 option["interactive"] = False
@@ -67,13 +72,13 @@ def msg(type, str, usage=False, **kwargs):
         print(printStr, **kwargs)
     
     if usage:
-        printUsage()
+        print(getUsage())
     
     if isError:
         sys.exit(type.value-1) #1 for warning, 2 for error
         
-def printUsage():
-    print(
+def getUsage():
+    return (
         "\nUSAGE: python doxymw.py <command> [<opts>]"
         "\n"
         "\n<command> can be:"
@@ -87,6 +92,7 @@ def printUsage():
         "\n  -w,   --warnIsError   If warnings cause program to stop"
         "\n  -h,   --help          Prints help message")
 
+        
 def printHelp():
-    printUsage()
+    print(getUsage())
     

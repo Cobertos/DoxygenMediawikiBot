@@ -232,3 +232,39 @@ class DoxygenMediaWikiPage(object):
             return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText + "\n\n" + "[[Category:" + doxymwglobal.config["mediaWiki_transclusionCategory"] + "]]"
         else:
             return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText
+            
+class DoxygenMediaWikiCategory(object):
+
+    def __init__(self,title,parentCat,hidden=True):
+        self.title = title
+        self.parent = parentCat
+        self.hidden = hidden
+    
+    def __hash__(self):
+        return hash(self.title)
+    
+    def __eq__(self, other):
+        if isinstance(other, DoxygenMediaWikiCategory):
+            return self.title == other.title
+        return False
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
+    
+    @property
+    def mwtitle(self):
+        return "Category:" + self.title
+    
+    @property
+    def mwcontents(self):
+        parentText = ""
+        if self.parent:
+            parentText = "[[" + self.parent.mwtitle + "]]"
+            
+        hiddenCat = ""
+        if self.hidden:
+            hiddenCat = "__HIDDENCAT__"
+            
+    
+        return parentText + "\n" + hiddenCat
+    
