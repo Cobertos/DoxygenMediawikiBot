@@ -1,20 +1,14 @@
 #Todo:
+#Fix Cleanup not cleaning up the transclusion document category because it isn't a redirect
 #Add the doxygen logo and compilation time to the footer
 #Add doxygen styles to the mediawiki common css or something
 #Add doxygen bot user description >:]
 #Add sort key to categories
 #Add static objects to doxygenmw classes with default categories and other things
-#Dependency on $wgRestrictDisplayTitle = false, note this and create an option to not use it
 #Have the bot add a note with which type it is on the page (file, class, interface, namespace, etc, if it's not prominent)
 #fix all the TODOS in the code
 #Clone doxygen's easy navigation with some templates for mediawiki? maybe
-#Better management of old documentation (update as many docs as possible, delete the rest or replace with a Class has been deleted file)
-#   Option for deleting old docs right away or leaving them around for one "update"(as is currently the default)
+#Option for deleting old docs right away or leaving them around for one "update"(as is currently the default)
 #possible have DoxyMediaWikiPage be a base class, each class under that is a type of page we're uploading/updating?????, kinda whqat we're wrking towards
 
-#Next commit will finish:
-#Add blank text to DoxygenDocs and TransclusionDocs categories so they don't red link
-
 #Changed:
-#Added new class DoxygenMediaWikiCategory
-#Reworked update mode to update/create in place and delete any outstanding pages in transCategory and docsCategory (save tons of deletes and remakes, which MW doesnt like)
