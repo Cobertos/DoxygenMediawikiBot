@@ -9,11 +9,3 @@
 #fix all the TODOS in the code
 #Clone doxygen's easy navigation with some templates for mediawiki? maybe
 #Option for deleting old docs right away or leaving them around for one "update"(as is currently the default)
-
-#Changed:
-DoxyMWPage: Base class for all pages
-More safety checks before we edit a page
-Fix TransExternCategory never getting added to the pages
-Fix Cleanup not cleaning up the transclusion document category because it isn't a redirect
-Make sure extern is not hidden
-Separated docsCategory from docsPrefix
