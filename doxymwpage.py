@@ -1,7 +1,8 @@
-#Represents one page in both doxygen and media wiki
 import re
+import hashlib
+import os
 
-from PyWikibot import pywikibot
+import pywikibot
 from bs4 import BeautifulSoup
 
 import doxymwglobal
@@ -12,121 +13,6 @@ class DoxyMWException(Exception):
 #Exception when the configuration isn't safe to use
 class DoxyMWConfigException(DoxyMWException):
     pass
-    
-#Function that returns data extracted from Doxygen file for MediaWiki page
-#Returns a dictionary with
-# + title: The title of the Doxygen file, straight unicode
-# + displayTitle: Title of the Doxygen file, with HTML entities
-# + contents: The body of the Doxygen file
-def DoxygenHTMLExtractor(text):
-    soup = BeautifulSoup(text)
-    data = {}
-    
-    def onlyOne(tagList, which):
-        if len(tagList) <= 0:
-            doxymwglobal.msg(doxymwglobal.msgType.warning, "No " + which + " found")
-            return None
-        elif len(tagList) > 1:
-            doxymwglobal.msg(doxymwglobal.msgType.warning, "Ambiguous " + which)
-        return tagList[0]
-    
-    #Find the title
-    select = onlyOne(soup.select("div.header div.title"), "title")
-    if not select:
-        return None
-    data["title"] = select.decode_contents(formatter=None) #Straight unicode
-    data["displayTitle"] = select.decode_contents(formatter="html") #With HTML &gt;-type entities
-    
-    #Find the contents
-    select = onlyOne(soup.select("div.contents"), "contents")
-    if not select:
-        return None
-    data["contents"] = select.decode_contents(formatter="html")
-    
-    #Footer for attribution and date info
-    select = onlyOne(soup.select("address.footer"), "footer")
-    if not select:
-        return None
-    data["footer"] = select.decode_contents(formatter="html")
-    
-    return data
-
-#Function that translates all HTML to MediaWiki markup with the least amount of work
-#Returns two objects in a tuple
-# + text contains the translated HTML for the wiki
-# + imgs contains all identified images that should be uploaded
-def DoxygenHTMLConverter(text, wikiPages):
-    soup = BeautifulSoup(text)
-    imgs = []
-    
-    #Output of doxygen
-    #http://www.stack.nl/~dimitri/doxygen/manual/htmlcmds.html
-    #...and <map> tag
-
-    #Accepted by mediawiki
-    #http://meta.wikimedia.org/wiki/Help:HTML_in_wikitext
-
-    #Output from doxygen and not supported by mediawiki
-    #We must convert these
-    #<a href="...">
-    #<a name="...">
-    #<img src="..." ...>
-    #<map>
-    
-    #Convert <a>s
-    for a in soup("a"):
-        #A normal link
-        if "href" in a.attrs:
-            href = a.attrs["href"]
-            text = a.string
-            #Get link and fragment portions of href
-            hashPos = href.rfind("#")
-            fragment = ""
-            if hashPos != -1:
-                fragment = href[hashPos:]
-                link = href[:hashPos]
-            else:
-                link = href
-            
-            #Compare to list of wiki pages and change if necessary
-            internalLink = False
-            for page in wikiPages:
-                if link == page.filename:
-                    internalLink = True
-                    link = page.title
-                    break
-            
-            #Make an internal or external link
-            if not text:
-                newStr = "" #TODO: Handle lack of a.string(We only found tags,like a linked image)
-            elif not internalLink:
-                newStr = "[" + href + " " + text + "]"
-            else:
-                newStr = "[[" + link + fragment + "|" + text + "]]"
-        
-        #A named anchor
-        if "name" in a.attrs:
-            newStr = soup.new_tag("span")
-            newStr.attrs["id"] = a.attrs["name"] #Named anchors in MediaWiki just use the id
-            newStr.attrs["style"] = "width:0;height:0;font-size:0;"
-    
-        a.replace_with(newStr)
-        
-    #Convert and store <img>s
-    for img in soup("img"):
-        #File this image for later use
-        imgs.append(img.attrs["src"])
-        
-        #Convert the image
-        newStr = "[[File:" + img.attrs["src"] + "]]"
-        img.replace_with(newStr)
-        
-    #Convert <maps>
-    #For now just delete them, we'll have to rely on a MW extension for this one later
-    for map in soup("map"):
-        map.replace_with("") 
-        
-    return (soup.decode_contents(formatter="html"), imgs)
 
 #An abstract base classes for all other page types
 class DoxyMWPage(object):
@@ -139,13 +25,13 @@ class DoxyMWPage(object):
         raise NotImplementedError("Abstract class property should be implemented")
     
     #Should check a DoxyMWPage to make sure it's the page we think (safety measure)
-    def checkPage(self, page):
+    def checkPage(self, site, page):
         raise NotImplementedError("Abstract class function should be implemented")
     
     #Should update/create a page to conform to the information stored in the object
-    def updatePage(self, page):
+    def updatePage(self, site, page):
         #Most classes use this
-        if not self.checkPage(page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
+        if not self.checkPage(site, page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
             raise DoxyMWException("Page is not the correct page to be edited by this object")
         
         try:
@@ -199,7 +85,7 @@ class CategoryPage(DoxyMWPage):
             
         return parentText + "\n" + hiddenCat
         
-    def checkPage(self, page):
+    def checkPage(self, site, page):
         return True
         
 class DoxygenHTMLPage(DoxyMWPage):
@@ -218,6 +104,10 @@ class DoxygenHTMLPage(DoxyMWPage):
 
         
     def __init__(self, fp, fn, type):
+        #Check validity of file
+        if not os.path.isfile(fp + "/" + fn):
+            raise DoxyMWException("File " + fp + "/" + fn + " does not exist")
+    
         #About the file this page came from (every file is a page)
         self.filepath = fp
         self.filename = fn
@@ -235,10 +125,10 @@ class DoxygenHTMLPage(DoxyMWPage):
     
     #Extracts all the data from the file at self.filepath
     def extract(self):
-        fp = open(self.filepath)
+        fp = open(self.filepath + "/" + self.filename)
     
         #Extract the specific parts of the page for the wiki
-        data = DoxygenHTMLExtractor(fp.read())
+        data = self.extractInternal(fp.read())
         
         if not data:
             raise DoxyMWException("Not enough content in doxygen document to create MediaWiki page in " + self.filename)
@@ -260,14 +150,129 @@ class DoxygenHTMLPage(DoxyMWPage):
     #Converts all the data in this page to proper MediaWiki markup
     def convert(self, wikiPages):
         #Convert gathered data into MediaWiki markup (including links using wikiPages)
-        self.contents, moreImgs = DoxygenHTMLConverter(self.contents, wikiPages)
+        self.contents, moreImgs = self.convertInternal(self.contents, wikiPages)
         self.imgs += moreImgs
-        self.footer, moreImgs = DoxygenHTMLConverter(self.footer, wikiPages)
+        self.footer, moreImgs = self.convertInternal(self.footer, wikiPages)
         self.imgs += moreImgs
     
     #Gets the transclusion page this DoxygenHTML page should be referenced by
     def getTransclusionPage(self):
         return TransclusionPage(self.title, self)
+    
+    #Function that returns data extracted from Doxygen file for MediaWiki page
+    #Returns a dictionary with
+    # + title: The title of the Doxygen file, straight unicode
+    # + displayTitle: Title of the Doxygen file, with HTML entities
+    # + contents: The body of the Doxygen file
+    def extractInternal(self, text):
+        soup = BeautifulSoup(text)
+        data = {}
+        
+        def onlyOne(tagList, which):
+            if len(tagList) <= 0:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "No " + which + " found")
+                return None
+            elif len(tagList) > 1:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "Ambiguous " + which)
+            return tagList[0]
+        
+        #Find the title
+        select = onlyOne(soup.select("div.header div.title"), "title")
+        if not select:
+            return None
+        data["title"] = select.decode_contents(formatter=None) #Straight unicode
+        data["displayTitle"] = select.decode_contents(formatter="html") #With HTML &gt;-type entities
+        
+        #Find the contents
+        select = onlyOne(soup.select("div.contents"), "contents")
+        if not select:
+            return None
+        data["contents"] = select.decode_contents(formatter="html")
+        
+        #Footer for attribution and date info
+        select = onlyOne(soup.select("address.footer"), "footer")
+        if not select:
+            return None
+        data["footer"] = select.decode_contents(formatter="html")
+        
+        return data
+
+    #Function that translates all HTML to MediaWiki markup with the least amount of work
+    #Returns two objects in a tuple
+    # + text contains the translated HTML for the wiki
+    # + imgs contains all identified images that should be uploaded
+    def convertInternal(self, text, wikiPages):
+        soup = BeautifulSoup(text)
+        imgs = []
+        
+        #Output of doxygen
+        #http://www.stack.nl/~dimitri/doxygen/manual/htmlcmds.html
+        #...and <map> tag
+
+        #Accepted by mediawiki
+        #http://meta.wikimedia.org/wiki/Help:HTML_in_wikitext
+
+        #Output from doxygen and not supported by mediawiki
+        #We must convert these
+        #<a href="...">
+        #<a name="...">
+        #<img src="..." ...>
+        #<map>
+        
+        #Convert <a>s
+        for a in soup("a"):
+            #A normal link
+            if "href" in a.attrs:
+                href = a.attrs["href"]
+                text = a.string
+                #Get link and fragment portions of href
+                hashPos = href.rfind("#")
+                fragment = ""
+                if hashPos != -1:
+                    fragment = href[hashPos:]
+                    link = href[:hashPos]
+                else:
+                    link = href
+                
+                #Compare to list of wiki pages and change if necessary
+                internalLink = False
+                for page in wikiPages:
+                    if link == page.filename:
+                        internalLink = True
+                        link = page.title
+                        break
+                
+                #Make an internal or external link
+                if not text:
+                    newStr = "" #TODO: Handle lack of a.string(We only found tags,like a linked image)
+                elif not internalLink:
+                    newStr = "[" + href + " " + text + "]"
+                else:
+                    newStr = "[[" + link + fragment + "|" + text + "]]"
+            
+            #A named anchor
+            if "name" in a.attrs:
+                newStr = soup.new_tag("span")
+                newStr.attrs["id"] = a.attrs["name"] #Named anchors in MediaWiki just use the id
+                newStr.attrs["style"] = "width:0;height:0;font-size:0;"
+        
+            a.replace_with(newStr)
+            
+        #Convert and store <img>s
+        for img in soup("img"):
+            #File this image for later use
+            imgs.append(ImagePage(self.filepath, img.attrs["src"]))
+            
+            #Convert the image
+            newStr = "[[File:" + img.attrs["src"] + "]]"
+            img.replace_with(newStr)
+            
+        #Convert <maps>
+        #For now just delete them, we'll have to rely on a MW extension for this one later
+        for map in soup("map"):
+            map.replace_with("") 
+            
+        return (soup.decode_contents(formatter="html"), imgs)
     
     #Gets the page title
     @property
@@ -311,7 +316,7 @@ class DoxygenHTMLPage(DoxyMWPage):
         "\n</noinclude>"
         )
     
-    def checkPage(self, page):
+    def checkPage(self, site, page):
         if not page.exists():
             return True
             
@@ -363,7 +368,7 @@ class TransclusionPage(DoxyMWPage):
             ("[[" + TransclusionPage.globalExternCategory.mwtitle + "|" + sortKey + "]]" if TransclusionPage.globalExternCategory else "")
         )
         
-    def checkPage(self, page):
+    def checkPage(self, site, page):
         if not page.exists():
             return True
             
@@ -375,8 +380,8 @@ class TransclusionPage(DoxyMWPage):
             check = check and TransclusionPage.globalExternCategory.isInCategory(page)
         return check
     
-    def updatePage(self, page):
-        if not self.checkPage(page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
+    def updatePage(self, site, page):
+        if not self.checkPage(site, page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
             raise DoxyMWException("Page is not the correct page to be editted by this object")
         
         putText = ""
@@ -401,7 +406,51 @@ class TransclusionPage(DoxyMWPage):
                 page.save()
             except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
                 raise DoxyMWException("Couldn't create page")
+
+class ImagePage(DoxyMWPage):
+    globalCategory = CategoryPage(DoxygenHTMLPage.globalCategory.title + "_IMAGE", parent=DoxygenHTMLPage.globalCategory)
+
+    def __init__(self, fp, fn):
+        #Check validity of file
+        if not os.path.isfile(fp + "/" + fn):
+            raise DoxyMWException("File " + fp + "/" + fn + " does not exist")
+    
+        self.filepath = fp
+        self.filename = fn
+    
+    @property
+    def mwtitle(self):
+        return "File:" + self.filename
+    
+    @property
+    def mwcontents(self):
+        return "Autogenerated Doxygen Image\n" + "[[" + ImagePage.globalCategory.mwtitle + "]]"
+    
+    def checkPage(self, site, page):
+        return True
+    
+    def updatePage(self, site, page):
+        imgPage = pywikibot.FilePage(site, self.filename)
         
+        #If page exists, test hash against uploaded image
+        try:
+            #Throws exception on no page existing (NoPage)
+            currSha1 = imgPage.latest_file_info.sha1
+            
+            #Check the sha1 so we don't update needlessly
+            fp = open(self.filepath + "/" + self.filename, "rb")
+            sha1 = hashlib.sha1()
+            sha1.update(fp.read())
+            if currSha1 == sha1.hexdigest():
+                doxymwglobal.msg(doxymwglobal.msgType.info, "Image skipped because hashes were equal")
+                return
+        except pywikibot.exceptions.NoPage:
+            pass
+        
+        #Otherwise upload that bad boy/girl/non-binary gender entity
+        doxymwglobal.msg(doxymwglobal.msgType.info, "Image " + self.filename + " being uploaded")
+        site.upload(imgPage, source_filename=self.filepath + "/" + self.filename, comment=self.mwcontents, ignore_warnings=True)
+                
 class BotUserPage(DoxyMWPage):
     @property
     def mwtitle(self):

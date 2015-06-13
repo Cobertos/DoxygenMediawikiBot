@@ -10,3 +10,7 @@
 #The javascript for the box hiding?
 #Define specific DoxygenHTMLPages that dont show up in the external category
 #Update specific things on transclusion pages, like categories (something that doesnt harm the content?) if we need to?
+#Make sure the "delete old pages" works because it compares to title() and not title(underscores=True)
+
+#Stuff I'd like to add but probably won't:
+#Checks to see if user has privileges (we just assume they do)
