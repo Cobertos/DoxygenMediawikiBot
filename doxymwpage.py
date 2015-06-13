@@ -179,7 +179,7 @@ class CategoryPage(DoxyMWPage):
     
     def isInCategory(self, page):
         for pageCategory in page.categories():
-            if pageCategory.title() == self.mwtitle:
+            if pageCategory.title(underscore=True) == self.mwtitle:
                 return True
         return False
     
@@ -302,6 +302,7 @@ class DoxygenHTMLPage(DoxyMWPage):
         "\n" + self.footer +
         
         "\n<noinclude>" +
+        "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "]]" + 
         "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "_" + self.type + "]]" +
         "\n</noinclude>"
         )

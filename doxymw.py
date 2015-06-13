@@ -140,9 +140,9 @@ def readDoxygenHTMLDocs():
             
             #Check type
             if not fileDoxyType:
-                for prefix in params["doxygen_filePrefixes"]:
+                for prefix, type in params["doxygen_filePrefixes"].items():
                     if fileName[:len(prefix)] == prefix:
-                        fileDoxyType = prefix
+                        fileDoxyType = type
             
             #Filter out the html files without type
             if fileDoxyType == None:
