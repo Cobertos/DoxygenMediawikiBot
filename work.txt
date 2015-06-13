@@ -9,3 +9,4 @@
 #fix all the TODOS in the code
 #Clone doxygen's easy navigation with some templates for mediawiki? maybe
 #Option for deleting old docs right away or leaving them around for one "update"(as is currently the default)
+#The javascript for the box hiding?
