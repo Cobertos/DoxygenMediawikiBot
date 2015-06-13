@@ -16,12 +16,10 @@ from PyWikibot.pywikibot import pagegenerators
 from PyWikibot.pywikibot.pagegenerators import GeneratorFactory
 
 import doxymwglobal
-from doxymwpage import DoxygenMediaWikiPage, DoxygenMediaWikiCategory
+from doxymwpage import DoxyMWException, DoxygenHTMLPage, CategoryPage, BotUserPage, TransclusionPage
 
 #Calls doxygen using a config file and outputs everything to a temporary path
 def generateDoxygenHTMLDocs():
-    print(doxymwglobal.config)
-
     #Try the config file
     with open(doxymwglobal.config["doxygen_configPath"]) as fp:
         configLines = fp.readlines()
@@ -37,7 +35,7 @@ def generateDoxygenHTMLDocs():
         "GENERATE_HTML"          : "YES",
         "HTML_OUTPUT"            : "html",
         "HTML_FILE_EXTENSION"    : ".html",
-        "HIDE_COMPOUND_REFERENCE": "YES",
+        "HIDE_COMPOUND_REFERENCE": "YES", #Cleaner titles
 
         #Disabling specific HTML sections
         #Possibly critical, makes HTML easier to work with
@@ -82,7 +80,7 @@ def generateDoxygenHTMLDocs():
                 #Warn about specific parameters
                 for warn in warnParams.keys():
                     if k == warn and v != warnParams[warn]:
-                        print("WARNING: Parameter " + warn + " is not set to " + warnParams[warn])
+                        doxymwglobal.msg(doxymwglobal.warning, "Parameter " + warn + " is not set to " + warnParams[warn])
                 
         #Append the force tags to the end (overwrite the other values)
         forceParams = params["doxygen_paramsForce"]
@@ -154,7 +152,7 @@ def readDoxygenHTMLDocs():
             print("*", end="", flush=True)
             
             #Make the doxygen wiki page object
-            page = DoxygenMediaWikiPage(fileAbsPath, fileTail, fileDoxyType)
+            page = DoxygenHTMLPage(fileAbsPath, fileTail, fileDoxyType)
             wikiPages.append(page)
     print("")
     return wikiPages
@@ -183,7 +181,7 @@ def main():
             return
         elif arg.find("-d:") == 0 or arg.find("--debug:") == 0:
             option["debug"] = arg.split(":")[1]
-            if option["debug"] != "doxygen":
+            if option["debug"] != "doxygen" and option["debug"] != "unsafeUpdate":
                 doxymwglobal.msg(doxymwglobal.msgType.error, "Invalid debug specified " + option["debug"], usage=True)
             
         elif arg.find("-p:") == 0 or arg.find("--printLevel:") == 0:
@@ -234,20 +232,27 @@ def main():
     #Make sure we're logged in - Use login.py script
     login.main("-pass:not_the_real_password_replace_this")
     
-    #Returns a generator that matches all DoxygenMWPages (That aren't non-redirect transclusions)
+    #Top level category objects
+    docsCategory = DoxygenHTMLPage.globalCategory
+    transCategory = TransclusionPage.globalCategory
+    transExternCategory = TransclusionPage.globalExternCategory
+    
+    #Returns a generator that matches all DoxyMWPages (That aren't non-redirect transclusions)
     def DoxyMWPageGenerator():
         #All the doc category documents
         fac = GeneratorFactory()
-        fac.handleArg("-catr:" + doxymwglobal.config["mediaWiki_docsCategory"])
-        fac.handleArg("-subcatsr:" + doxymwglobal.config["mediaWiki_docsCategory"])
-        fac.handleArg("-page:" + "Category:" + doxymwglobal.config["mediaWiki_docsCategory"])
+        #All the doc category documents
+        fac.handleArg("-catr:" + docsCategory.title)
+        fac.handleArg("-subcatsr:" + docsCategory.title)
+        fac.handleArg("-page:" + docsCategory.mwtitle)
+        #The transclusion category page
+        fac.handleArg("-page:" + transCategory.mwtitle)
         gen1 = fac.getCombinedGenerator()
                 
         #Find all the transclusion pages and only select the ones that are just redirects
         #Don't delete any other transclusion pages
         fac = GeneratorFactory()
-        fac.handleArg("-catr:" + doxymwglobal.config["mediaWiki_transclusionCategory"])
-        fac.handleArg("-page:" + "Category:" + doxymwglobal.config["mediaWiki_transclusionCategory"])
+        fac.handleArg("-catr:" + transCategory.title)
         gen2 = fac.getCombinedGenerator()
         debugFiltered = doxymwglobal.option["printLevel"].value <= doxymwglobal.msgType.debug.value
         gen2 = pagegenerators.RedirectFilterPageGenerator(gen2, no_redirects=False, show_filtered=debugFiltered)
@@ -274,22 +279,28 @@ def main():
         
     #UPDATE - Create/update all the wiki pages, deletes all old/unused pages
     if option["command"] == "update":
+        def modifyAPage(gen, data):
+            try:
+                page = gen.__next__()
+                data.updatePage(page)
+                return True
+            except DoxyMWException as e:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, str(e))
+                return False
+            except StopIteration as e:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "No page in generator")
+                return False
+            
         #TODO: Create the bots user page (only if theres aspecific bot account!)
         
         #Categories we need to make
         neededCategories = set()
         lastCategories = set()
-        #Make top level categories, we always need these
-        docsCategory = DoxygenMediaWikiCategory(doxymwglobal.config["mediaWiki_docsCategory"], None)
-        transCategory = None
-        transExternCategory = None
         neededCategories.add(docsCategory)
         if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-            transCategory = DoxygenMediaWikiCategory(doxymwglobal.config["mediaWiki_transclusionCategory"], None)
             neededCategories.add(transCategory)
-            if "mediaWiki_transclusionExternalCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transclusionExternalCategory"] != "":
-                transExternCategory = DoxygenMediaWikiCategory(doxymwglobal.config["mediaWiki_transclusionExternalCategory"], None)
-                neededCategories.add(transExternCategory)
+            if transExternCategory:
+                neededCategories.add(transExternCategory)        
 
         #Updated Pages
         updatedPages = []
@@ -297,69 +308,22 @@ def main():
         #Create/update all the documentation pages
         for pageData in wikiPages:
             #Create/overwrite the actual documentation page
-            mwtitle = pageData.mwtitle
-            gen = pagegenerators.PagesFromTitlesGenerator([mwtitle])
-            for page in gen:
-                #Whether the page exists or not just create/overwrite it
-                try:
-                    #Create/update the page
-                    page.text = pageData.mwcontents
-                    page.save()
-                    updatedPages.append(mwtitle)
-                    
-                    #This page made something, so make a category for it
-                    cat = DoxygenMediaWikiCategory(doxymwglobal.config["mediaWiki_docsCategory"] + "_" + pageData.type, docsCategory)
-                    neededCategories.add(cat)
-                    
-                except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                    doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not create page.")
-                    continue
+            gen = pagegenerators.PagesFromTitlesGenerator([pageData.mwtitle])
+            if modifyAPage(gen, pageData):
+                updatedPages.append(pageData.mwtitle)
+                #This page made something, so make sure it's category is made
+                cat = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"] + "_" + pageData.type, parent=docsCategory)
+                neededCategories.add(cat)
                     
             #Create the transclusion pages
-            if transCategory:
-                transtitle = pageData.mwtranstitle
-                gen = pagegenerators.PagesFromTitlesGenerator([transtitle])
-                for page in gen:
-                    putText = ""
-                    
-                    #If the page doesn't exist or is old redirect, make it as a blank redirect
-                    if not page.exists() or page.isRedirectPage():
-                        putText = pageData.mwtranscontents
-                        
-                    #If the page does exist, make it a transclusion page
-                    #This ONLY happens if the page is in our category
-                    else:
-                        #Safety mesaure, check if it's in the user defined
-                        #external category
-                        hasCat = False
-                        if transExternCategory != "":
-                            for cat in page.categories():
-                                if cat.title() == transExternCategory.mwtitle:
-                                    hasCat = True
-                                    break
-                        else:
-                            hasCat = True
-                        
-                        #Either no external category or its in the category
-                        if hasCat:
-                            page.get()
-                            transTest = "{{:" + mwtitle + "}}"
-                            if page.text.find(transTest) == -1:
-                                #Append the transclusion to the page, but only if it isn't already there
-                                putText = page.text + "\n" + transTest
-                    
-                    #If we changed the page, save it
-                    if putText != "":
-                        try:
-                            page.text = putText
-                            page.save()
-                            updatedPages.append(transtitle)
-                        except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                            doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not create transclusion page.")
-                            continue
+            if doxymwglobal.config["mediaWiki_setupTransclusions"]:
+                transPageData = pageData.getTransclusionPage()
+                gen = pagegenerators.PagesFromTitlesGenerator([transPageData.mwtitle])
+                if modifyAPage(gen, transPageData):
+                    updatedPages.append(transPageData.mwtitle)
                      
             #Upload all images - Use upload.py script
-            docsImgCategory = DoxygenMediaWikiCategory(doxymwglobal.config["mediaWiki_docsCategory"] + "_" + "IMAGE", docsCategory)
+            docsImgCategory = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"] + "_" + "IMAGE", parent=docsCategory)
             for img in pageData.imgs:
                 imgPath = doxymwglobal.config["doxygen_tmpPath"] + "/html/" + img
                 doxymwglobal.msg(doxymwglobal.msgType.info, imgPath)
@@ -370,24 +334,13 @@ def main():
                 
             #Create all added categories
             newCats = neededCategories.difference(lastCategories)
-            for cat in newCats:
+            for catPageData in newCats:
                 fac = GeneratorFactory()
-                fac.handleArg("-page:" + cat.mwtitle)
+                fac.handleArg("-page:" + catPageData.mwtitle)
                 gen = fac.getCombinedGenerator()
                 gen = pagegenerators.PreloadingGenerator(gen)
-                for page in gen:
-                    try:
-                        if page.exists():
-                            page.get()
-                            if page.text == cat.mwcontents:
-                                continue #Don't need to make or update
-                        
-                        page.text = cat.mwcontents
-                        page.save()
-                        updatedPages.append(cat.mwtitle)
-                    except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                        doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not create category.")
-                        continue
+                if modifyAPage(gen, catPageData):
+                    updatedPages.append(catPageData.mwtitle)
                         
             lastCategories = neededCategories.copy()
             

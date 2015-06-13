@@ -1,11 +1,16 @@
 #Represents one page in both doxygen and media wiki
 import re
 
+from PyWikibot import pywikibot
 from bs4 import BeautifulSoup
 
 import doxymwglobal
 
-class DoxygenMediaWikiException(Exception):
+class DoxyMWException(Exception):
+    pass
+
+#Exception when the configuration isn't safe to use
+class DoxyMWConfigException(DoxyMWException):
     pass
     
 #Function that returns data extracted from Doxygen file for MediaWiki page
@@ -122,8 +127,96 @@ def DoxygenHTMLConverter(text, wikiPages):
         map.replace_with("") 
         
     return (soup.decode_contents(formatter="html"), imgs)
+
+#An abstract base classes for all other page types
+class DoxyMWPage(object):
+    @property #Should return the MediaWiki title
+    def mwtitle(self):
+        raise NotImplementedError("Abstract class property should be implemented")
         
-class DoxygenMediaWikiPage(object):
+    @property #Should return the MediaWiki page contents
+    def mwcontents(self):
+        raise NotImplementedError("Abstract class property should be implemented")
+    
+    #Should check a DoxyMWPage to make sure it's the page we think (safety measure)
+    def checkPage(self, page):
+        raise NotImplementedError("Abstract class function should be implemented")
+    
+    #Should update/create a page to conform to the information stored in the object
+    def updatePage(self, page):
+        #Most classes use this
+        if not self.checkPage(page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
+            raise DoxyMWException("Page is not the correct page to be edited by this object")
+        
+        try:
+            if page.exists():
+                page.get()
+                if page.text == self.mwcontents:
+                    return #Don't need to make or update
+                    
+            page.text = self.mwcontents
+            page.save()
+        except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
+            raise DoxyMWException("Couldn't create page")
+        
+        
+class CategoryPage(DoxyMWPage):
+    def __init__(self, title, parent=None, hidden=True):
+        self.title = title
+        self.parent = parent
+        self.hidden = hidden
+    
+    def __hash__(self):
+        return hash(self.title)
+    
+    def __eq__(self, other):
+        if isinstance(other, CategoryPage):
+            return self.title == other.title
+        return False
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
+    
+    def isInCategory(self, page):
+        for pageCategory in page.categories():
+            if pageCategory.title() == self.mwtitle:
+                return True
+        return False
+    
+    @property
+    def mwtitle(self):
+        return "Category:" + self.title
+    
+    @property
+    def mwcontents(self):
+        parentText = ""
+        if self.parent:
+            parentText = "[[" + self.parent.mwtitle + "]]"
+            
+        hiddenCat = ""
+        if self.hidden:
+            hiddenCat = "__HIDDENCAT__"
+            
+        return parentText + "\n" + hiddenCat
+        
+    def checkPage(self, page):
+        return True
+        
+class DoxygenHTMLPage(DoxyMWPage):
+    #Config values to change how the pages are made
+    globalPrefix = None
+    if "mediaWiki_docsPrefix" in doxymwglobal.config and doxymwglobal.config["mediaWiki_docsPrefix"] != "":
+        globalPrefix = doxymwglobal.config["mediaWiki_docsPrefix"]
+    else:
+        raise DoxyMWConfigException("A docs prefix must be defined or we may clash with other names")
+        
+    globalCategory = None
+    if "mediaWiki_docsCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_docsCategory"] != "":
+        globalCategory = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"],hidden=True)
+    else:
+        raise DoxyMWConfigException("A docs category must be defined or we can't properly clean the docs up later")
+
+        
     def __init__(self, fp, fn, type):
         #About the file this page came from (every file is a page)
         self.filepath = fp
@@ -148,7 +241,7 @@ class DoxygenMediaWikiPage(object):
         data = DoxygenHTMLExtractor(fp.read())
         
         if not data:
-            raise DoxygenMediaWikiException("Not enough content in doxygen document to create MediaWiki page in " + self.filename)
+            raise DoxyMWException("Not enough content in doxygen document to create MediaWiki page in " + self.filename)
         
         #Check for invalid characters in title, may need to use a DisplayTitle to display class properly
         fakeTitle = re.sub("[\<\>\[\]\|\{\}_#]", "_", data["title"])
@@ -172,10 +265,14 @@ class DoxygenMediaWikiPage(object):
         self.footer, moreImgs = DoxygenHTMLConverter(self.footer, wikiPages)
         self.imgs += moreImgs
     
+    #Gets the transclusion page this DoxygenHTML page should be referenced by
+    def getTransclusionPage(self):
+        return TransclusionPage(self.title, self)
+    
     #Gets the page title
     @property
     def mwtitle(self):
-        return doxymwglobal.config["mediaWiki_docsCategory"] + "_" + self.title
+        return DoxygenHTMLPage.globalPrefix + "_" + self.title
     
     #Gets the page contents
     @property
@@ -205,66 +302,108 @@ class DoxygenMediaWikiPage(object):
         "\n" + self.footer +
         
         "\n<noinclude>" +
-        "\n[[Category:" + doxymwglobal.config["mediaWiki_docsCategory"] + "_" + self.type + "]]" +
+        "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "_" + self.type + "]]" +
         "\n</noinclude>"
         )
     
-    #Gets the transclusion page title
+    def checkPage(self, page):
+        if not page.exists():
+            return True
+            
+        #Must have our docs category to modify!
+        return DoxygenHTMLPage.globalCategory.isInCategory(page)
+        
+
+class TransclusionPage(DoxyMWPage):
+    #Config values to change how the pages are made
+    globalPrefix = None
+    if "mediaWiki_transclusionPrefix" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transclusionPrefix"] != "":
+        globalPrefix = doxymwglobal.config["mediaWiki_transclusionPrefix"]
+        
+    globalCategory = None
+    if "mediaWiki_transclusionCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transclusionCategory"] != "":
+        globalCategory = CategoryPage(doxymwglobal.config["mediaWiki_transclusionCategory"],hidden=True)
+    else:
+        raise DoxyMWConfigException("A transclusion category must be defined or we can't properly clean them up later")
+        
+    globalExternCategory = None
+    if "mediaWiki_transclusionExternalCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transclusionExternalCategory"] != "":
+        globalExternCategory = CategoryPage(doxymwglobal.config["mediaWiki_transclusionExternalCategory"])
+        
+
+    def __init__(self, title, target):
+        self.title = title #Basic title of the transclusion page, same as doxygen docs page title
+        self.target = target #Target DoxyMWPage of this transclusion page
+       
     @property
-    def mwtranstitle(self):
-        if "mediaWiki_transPrefix" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transPrefix"] != "":
-            return doxymwglobal.config["mediaWiki_transPrefix"] + "_" + self.title
-        else:
-            return self.title
+    def mwtitle(self):
+        return ((TransclusionPage.globalPrefix if TransclusionPage.globalPrefix else "") + 
+            "_" + self.title)
     
-    #Gets the transclusion page contents
     @property
-    def mwtranscontents(self):
+    def mwcontents(self):
         infoText = (
             "\n<!--"
             "\nTo add content alongside your coding documentation, you must edit this page."
             "\nRemove the redirect and add the text {{:" + self.mwtitle + "}} to transclude the coding documentation on this page"
-            "\nIf you choose, you can rerun DoxyMWBot to add append transclusion to every non-redirect page you have created"
+            "\nIf you choose, you can rerun DoxyMWBot to append a transclusion to every non-redirect page you have created"
             "\n-->"
         )
     
-        if "mediaWiki_transclusionCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_transclusionCategory"] != "":
-            return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText + "\n\n" + "[[Category:" + doxymwglobal.config["mediaWiki_transclusionCategory"] + "]]"
-        else:
-            return "#REDIRECT [[" + self.mwtitle + "]]\n" + infoText
+        return ("#REDIRECT [[" + self.target.mwtitle + "]]\n" + infoText + "\n\n" +
+            "[[" + TransclusionPage.globalCategory.mwtitle + "]]" +
+            ("[[" + TransclusionPage.globalExternCategory.mwtitle + "]]" if TransclusionPage.globalExternCategory else "")
+        )
+        
+    def checkPage(self, page):
+        if not page.exists():
+            return True
             
-class DoxygenMediaWikiCategory(object):
-
-    def __init__(self,title,parentCat,hidden=True):
-        self.title = title
-        self.parent = parentCat
-        self.hidden = hidden
+        #Must have our categories to modify!
+        check = TransclusionPage.globalCategory.isInCategory(page)
+        
+        #Must also have external category if it's not a redirect page
+        if TransclusionPage.globalExternCategory and not page.isRedirectPage():
+            check = check and TransclusionPage.globalExternCategory.isInCategory(page)
+        return check
     
-    def __hash__(self):
-        return hash(self.title)
-    
-    def __eq__(self, other):
-        if isinstance(other, DoxygenMediaWikiCategory):
-            return self.title == other.title
-        return False
-    
-    def __ne__(self, other):
-        return not self.__eq__(other)
-    
+    def updatePage(self, page):
+        if not self.checkPage(page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
+            raise DoxyMWException("Page is not the correct page to be editted by this object")
+        
+        putText = ""
+                    
+        #If the page doesn't exist or is old redirect, make it as a blank redirect
+        if not page.exists() or page.isRedirectPage():
+            putText = self.mwcontents
+            
+        #If the page does exist, make it a transclusion page
+        #This ONLY happens if the page is in our category (checkPage enforces this)
+        else:
+            page.get()
+            transTest = "{{:" + self.target.mwtitle + "}}"
+            if page.text.find(transTest) == -1:
+                #Append the transclusion to the page, but only if it isn't already there
+                putText = page.text + "\n" + transTest
+        
+        #If we changed the page, save it
+        if putText != "":
+            try:
+                page.text = putText
+                page.save()
+            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
+                raise DoxyMWException("Couldn't create page")
+        
+class BotUserPage(DoxyMWPage):
     @property
     def mwtitle(self):
-        return "Category:" + self.title
+        #TODO: Make username of the bot configurable
+        #TODO: Don't use if not a separate bot account on this wiki for this bot
+        return "User:DoxygenBot"
     
     @property
     def mwcontents(self):
-        parentText = ""
-        if self.parent:
-            parentText = "[[" + self.parent.mwtitle + "]]"
-            
-        hiddenCat = ""
-        if self.hidden:
-            hiddenCat = "__HIDDENCAT__"
-            
-    
-        return parentText + "\n" + hiddenCat
-    
+        #TODO: Add usage here or something
+        infoText = (
+            "Hello, I am DoxyMWBot. I do things"
+        )
