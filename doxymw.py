@@ -104,12 +104,14 @@ def readDoxygenHTMLDocs():
     #Interfaces, prefix "interface_"
     #Namespaces, prefix "namespace_"
     #Classes, prefix "class_"
+    #Members lists, suffix "-members"
     params = {}
     params["doxygen_filePrefixes"] = {
-        "_" : "FILE",
-        "namespace_" : "NAMESPACE",
-        "class_" : "CLASS",
-        "interface_" : "INTERFACE"
+        "-members$" : "MEMBERS", #Match members lists first
+        "^_" : "FILE",
+        "^namespace_" : "NAMESPACE",
+        "^class_" : "CLASS",
+        "^interface_" : "INTERFACE"
     }
 
     #Other files we want (useful and don't provide redundancies to MediaWiki functionality)
@@ -140,8 +142,8 @@ def readDoxygenHTMLDocs():
             
             #Check type
             if not fileDoxyType:
-                for prefix, type in params["doxygen_filePrefixes"].items():
-                    if fileName[:len(prefix)] == prefix:
+                for regex, type in params["doxygen_filePrefixes"].items():
+                    if re.search(regex, fileName):
                         fileDoxyType = type
             
             #Filter out the html files without type
@@ -369,13 +371,13 @@ def main():
         #Filter requires all strings be regex patterns in a list in a special object based on family name and language
         updatedPages = [re.escape(str) for str in updatedPages]
         updatedPages = { "freespace" : { "en" : updatedPages }}
-        gen = PageTitleFilterPageGenerator(gen, updatedPages)
+        gen = pagegenerators.PageTitleFilterPageGenerator(gen, updatedPages)
         for page in gen:
             try:
                 page.delete(reason="", prompt=option["interactive"])
                 doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
             except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not delete page.")
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not delete old page.")
                 continue
                 
         #Uncache all the pages

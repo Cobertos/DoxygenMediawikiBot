@@ -1,12 +1,12 @@
 #Todo:
-#Update specific things on transclusion pages, like categories (something that doesnt harm the content?) if we need to?
 #make sure we don't update transExternCategory, only create it (possibly in the bottom task, add a flag if we're allow to touch it or not?)
 #Add the doxygen logo and compilation time to the footer
 #Add doxygen styles to the mediawiki common css or something
 #Add doxygen bot user description >:]
-#Add sort key to categories
 #Have the bot add a note with which type it is on the page (file, class, interface, namespace, etc, if it's not prominent)
 #fix all the TODOS in the code
 #Clone doxygen's easy navigation with some templates for mediawiki? maybe
 #Option for deleting old docs right away or leaving them around for one "update"(as is currently the default)
 #The javascript for the box hiding?
+#Define specific DoxygenHTMLPages that dont show up in the external category
+#Update specific things on transclusion pages, like categories (something that doesnt harm the content?) if we need to?

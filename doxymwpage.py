@@ -342,8 +342,8 @@ class TransclusionPage(DoxyMWPage):
        
     @property
     def mwtitle(self):
-        return ((TransclusionPage.globalPrefix if TransclusionPage.globalPrefix else "") + 
-            "_" + self.title)
+        return ((TransclusionPage.globalPrefix + "_" if TransclusionPage.globalPrefix else "")
+            + self.title)
     
     @property
     def mwcontents(self):
