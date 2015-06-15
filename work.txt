@@ -2,13 +2,12 @@
 #Better Category management
 #Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
 
-#Add the doxygen logo and compilation time to the footer
-#Add note in al documentation on lack of affiliation from Doxygen
-
 #Add doxygen styles to the mediawiki common css or something
 
 #The javascript for the box hiding?
 
+#Update documentation
+#Add note in all documentation on lack of affiliation from Doxygen
 #Add doxygen bot user description >:]
 #make sure we don't update transExternCategory, only create it (possibly in the bottom task, add a flag if we're allow to touch it or not?)
 
@@ -21,3 +20,4 @@
 #Stuff I'd like to add but probably won't:
 #Checks to see if user has privileges (we just assume they do)
 #Add a "[hide]" thing to the doxymw info box
+

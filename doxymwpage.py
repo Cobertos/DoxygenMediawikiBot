@@ -30,6 +30,7 @@ class DoxyMWPage(object):
     
     #Should update/create a page to conform to the information stored in the object
     def updatePage(self, site, page):
+        #raise NotImplementedError("Abstract class function should be implemented")
         #Most classes use this
         if not self.checkPage(site, page) and not doxymwglobal.option["debug"] == "unsafeUpdate":
             raise DoxyMWException("Page is not the correct page to be edited by this object")
@@ -44,7 +45,8 @@ class DoxyMWPage(object):
             page.save()
         except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
             raise DoxyMWException("Couldn't create page")
-        
+
+            
         
 class CategoryPage(DoxyMWPage):
     def __init__(self, title, parent=None, hidden=True):
@@ -281,7 +283,6 @@ class DoxygenHTMLPage(DoxyMWPage):
             #A normal link
             if "href" in a.attrs:
                 href = a.attrs["href"]
-                text = a.string
                 #Get link and fragment portions of href
                 hashPos = href.rfind("#")
                 fragment = ""
@@ -293,7 +294,7 @@ class DoxygenHTMLPage(DoxyMWPage):
                 
                 #Compare to list of wiki pages and change if necessary
                 internalLink = False
-                if link == "" and fragment == "": #Empty link
+                if link == "" and (fragment == "" or fragment == "#"): #Empty link
                     newStr = ""
                 elif link == "": #Local link with only fragment
                     internalLink = True
@@ -304,13 +305,21 @@ class DoxygenHTMLPage(DoxyMWPage):
                             link = page.title
                             break
                 
-                #Make an internal or external link
-                if not text:
-                    newStr = "" #TODO: Handle lack of a.string(We only found tags,like a linked image)
-                elif not internalLink:
-                    newStr = "[" + href + " " + text + "]"
-                else:
-                    newStr = "[[" + link + fragment + "|" + text + "]]"
+                #What's the content?
+                text = a.string
+                tags = a.select("*")
+                if text: #Simple text string
+                    if not internalLink:
+                        newStr = "[" + href + " " + text + "]"
+                    else:
+                        newStr = "[[" + link + fragment + "|" + text + "]]"
+                elif len(tags) == 1 and tags[0].name == "img": #One image inside the a tag
+                    img = tags[0]
+                    imgs.append(ImagePage(self.filepath, img.attrs["src"]))
+                    newStr = "[[File:" + img.attrs["src"] + "|link=" + link + fragment + "]]"
+                else: #Something else
+                    doxymwglobal.msg(doxymwglobal.msgType.warning, "Unhandled link with unknown contents")
+                    newStr = ""
             
             #A named anchor
             if "name" in a.attrs:
@@ -365,7 +374,7 @@ class DoxygenHTMLPage(DoxyMWPage):
         #The doxygen infobox and actual page contents
         "\n" + self.infobox +
         "\n" + self.contents + 
-        "\n" + self.footer +
+        "\n" + self.footer + "| <small>DoxyMWBot is in no way affiliated with Doxygen.</small>" +
         
         #The categories
         "\n<noinclude>" +
