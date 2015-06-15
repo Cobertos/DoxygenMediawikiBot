@@ -12,9 +12,11 @@ div.doxymw_infobox
 	border-color:#AAAAAA;
 	border-style:solid;
 	padding:2px;
+	margin-left:1em;
+	margin-bottom:0.5em;
 	float:right;
 	clear:right;
-	font-size:1em;
+	font-size:1.2em;
 	max-width:250px;
 }
 div.doxymw_infobox > div
@@ -27,7 +29,7 @@ div.doxymw_infobox > div.head
 	font-weight:bold;
 	text-align:center;
 }
-div.doxymw_infobox div.inheritance
+div.doxymw_infobox div.doxymw_nav
 {
 	-webkit-border-radius: 5px;
 	-moz-border-radius: 5px;
@@ -40,16 +42,19 @@ div.doxymw_infobox div.inheritance
 	padding-top:6px;
 	padding-bottom:6px;
 }
-div.doxymw_infobox div.inheritance div
+div.doxymw_infobox div.doxymw_nav div
 {
 	text-align:center;
 }
-div.doxymw_infobox div.inheritance div:nth-child(2n)
+div.doxymw_infobox div.doxymw_nav div:nth-child(2n)
 {
-	font-size:0.7em;
+	font-size:0.65em;
 }
 span.doxymw_type
 {
+	-webkit-border-radius: 2px;
+	-moz-border-radius: 2px;
+	border-radius: 2px;
 	padding:0;
 	padding-left:0.3em;
 	padding-right:0.3em;
@@ -59,28 +64,29 @@ span.doxymw_typeINTERFACE { background-color:#DDFFDD; }
 span.doxymw_typeNAMESPACE { background-color:#FFFFDD; }
 span.doxymw_typeMEMBERS { background-color:#DDDDFF; }
 span.doxymw_typeOTHER { background-color:#DDDDDD; }
+span.doxymw_type:hover { background-color:#E5E5E5; }
 </style>
 </head>
 <body>
+<!--DoxyMWBot Infobox (modelled after Wikipedia's)-->
 <div class="doxymw_infobox">
-<!--Similar to Wikipedias infobox-->
 <div class="head">DoxyMWBot</div>
-<div>Type: <span class="doxymw_type doxymw_typeCLASS">Class</span></div>
-<div>Inheritance:
-	<div class="inheritance">
-		<div>Class3</div>
+<div>Type: <span class="doxymw_type doxymw_typeCLASS">[[Class]]</span></div>
+<div>Nav:
+	<div class="doxymw_nav">
+		<div>[[Class3]]</div>
 		<div>V</div>
-		<div>Class2</div>
+		<div>[[Class2]]</div>
 		<div>V</div>
-		<div>Class1</div>
+		<div>[[Class1]]</div>
 		<div>V</div>
-		<div>Namespace</div>
+		<div>[[Namespace]]</div>
 	</div>
 </div>
 <div>Full Class Hierarchy</div>
 <div>[[User:Whoever DoxyMWBot]]</div>
 <div>[http://doxygen.org Doxygen]</div>
-
 </div>
+<!--End DoxyMWBot Infobox-->
 </body>
 </html>

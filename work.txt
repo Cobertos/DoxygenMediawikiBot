@@ -1,5 +1,4 @@
 #Todo:
-#Add styletest.html page as an "Infobox"
 #Better Category management
 #Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
 
@@ -21,3 +20,4 @@
 
 #Stuff I'd like to add but probably won't:
 #Checks to see if user has privileges (we just assume they do)
+#Add a "[hide]" thing to the doxymw info box

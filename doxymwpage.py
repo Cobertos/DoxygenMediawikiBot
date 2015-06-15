@@ -118,6 +118,7 @@ class DoxygenHTMLPage(DoxyMWPage):
         self.displayTitle = None
         self.contents = None
         self.footer = None
+        self.infobox = None
         self.imgs = []
         
         #Extract all the data
@@ -146,13 +147,49 @@ class DoxygenHTMLPage(DoxyMWPage):
         
         self.contents = data["contents"]
         self.footer = data["footer"]
+        
+        #Build the infobox
+        #Nav breadcrumb sort of thing
+        navStr = ""
+        if len(data["nav"]) > 0:
+            for i in range(0, len(data["nav"])):
+                tag = data["nav"][i]
+                navStr += "<div>" + tag + "</div>"
+                if i < len(data["nav"])-1: #Only add The dividers if it's not the last one
+                    navStr += "<div>V</div>"
+        
+        #Summary links
+        summaryStr = ""
+        if len(data["summary"]) > 0:
+            for i in range(0, len(data["summary"])):
+                tag = data["summary"][i]
+                summaryStr += "<div>" + tag + "</div>"
     
+        self.infobox = (
+        "<!--DoxyMWBot Infobox (modelled after Wikipedia's)-->" +
+        "<div class=\"doxymw_infobox\">" +
+        "<div class=\"head\">DoxyMWBot</div>" + 
+        "<div>Type: <span class=\"doxymw_type doxymw_type" + self.type + "\">[[" + "TheCorrectCategory" + "|" + self.type + "]]</span></div>" + #TODO: Replace this with the category
+        (("<div>Nav: " +
+            "<div class=\"doxymw_nav\">" +
+                navStr +
+            "</div>" +
+        "</div>") if navStr != "" else "") +
+        summaryStr +
+        "<div>Full Class Hierarchy</div>" +
+        #"<div>[[User:Whoever DoxyMWBot]]</div>" + #TODO: Readd when we get theuser page fully working
+        "<div>[http://doxygen.org Doxygen]</div>" +
+        "</div>" +
+        "<!--End DoxyMWBot Infobox-->")
+        
     #Converts all the data in this page to proper MediaWiki markup
     def convert(self, wikiPages):
         #Convert gathered data into MediaWiki markup (including links using wikiPages)
         self.contents, moreImgs = self.convertInternal(self.contents, wikiPages)
         self.imgs += moreImgs
         self.footer, moreImgs = self.convertInternal(self.footer, wikiPages)
+        self.imgs += moreImgs
+        self.infobox, moreImgs = self.convertInternal(self.infobox, wikiPages)
         self.imgs += moreImgs
     
     #Gets the transclusion page this DoxygenHTML page should be referenced by
@@ -162,6 +199,8 @@ class DoxygenHTMLPage(DoxyMWPage):
     #Function that returns data extracted from Doxygen file for MediaWiki page
     #Returns a dictionary with
     # + title: The title of the Doxygen file, straight unicode
+    # + nav: List of <a> tags from the upper breadcrumb like navigation thing
+    # + summary: Links in the summary div (like "List of members, Public members, Protected members" etc...)
     # + displayTitle: Title of the Doxygen file, with HTML entities
     # + contents: The body of the Doxygen file
     def extractInternal(self, text):
@@ -183,20 +222,38 @@ class DoxygenHTMLPage(DoxyMWPage):
         data["title"] = select.decode_contents(formatter=None) #Straight unicode
         data["displayTitle"] = select.decode_contents(formatter="html") #With HTML &gt;-type entities
         
+        #Find the nav
+        data["nav"] = []
+        select = onlyOne(soup.select("#nav-path > ul"), "nav")
+        if not select:
+            pass #May not be present, so we just leave this an an empty array
+        else:
+            for tag in select.select("li > a.el"):
+                data["nav"].append(tag.decode(formatter="html"))
+        
+        #Find the summary links
+        data["summary"] = []
+        select = onlyOne(soup.select("div.header div.summary"), "summary")
+        if not select:
+            pass #May not be present, so we just leave this an an empty array
+        else:
+            for tag in select.select("a"):
+                data["summary"].append(tag.decode(formatter="html"))
+        
         #Find the contents
         select = onlyOne(soup.select("div.contents"), "contents")
         if not select:
             return None
         data["contents"] = select.decode_contents(formatter="html")
         
-        #Footer for attribution and date info
+        #Footer for attribution and compile time info
         select = onlyOne(soup.select("address.footer"), "footer")
         if not select:
             return None
         data["footer"] = select.decode_contents(formatter="html")
         
         return data
-
+        
     #Function that translates all HTML to MediaWiki markup with the least amount of work
     #Returns two objects in a tuple
     # + text contains the translated HTML for the wiki
@@ -236,11 +293,16 @@ class DoxygenHTMLPage(DoxyMWPage):
                 
                 #Compare to list of wiki pages and change if necessary
                 internalLink = False
-                for page in wikiPages:
-                    if link == page.filename:
-                        internalLink = True
-                        link = page.title
-                        break
+                if link == "" and fragment == "": #Empty link
+                    newStr = ""
+                elif link == "": #Local link with only fragment
+                    internalLink = True
+                else: #Test if it matches an internal file, if not, external link
+                    for page in wikiPages:
+                        if link == page.filename:
+                            internalLink = True
+                            link = page.title
+                            break
                 
                 #Make an internal or external link
                 if not text:
@@ -282,34 +344,30 @@ class DoxygenHTMLPage(DoxyMWPage):
     #Gets the page contents
     @property
     def mwcontents(self):
-        #The full contents is made up from multiple parts:
-        #The noinclude DO NOT EDIT + link to transclusions (if they're enabled)
-        #DisplayTitle (If there is one)
-        #The actual contents of the page
-        #The category
-        
         #Sorting doesn't work too well with the original names
         #We reverse the order of the parts of the name from class to highest namespace
         sortKey = ".".join(reversed(self.title.split(".")))
         
+        #The noinclude DO NOT EDIT + link to transclusions (if they're enabled)
         return ("<noinclude>" +
-        "\nAUTOGENERATED CONTENT, DO NOT EDIT<br><br>" +
-        "\nAny edits made to this page will be lost upon the next running of DoxyMWBot." +
-        "\nTo add content alongside this documentation, " +
-        
-        ("edit [{{fullurl:" + self.title + "|redirect=no}} " + self.title + "] instead." if
+        "\n'''''Do not edit this autogenerated page.'''''" +
+        "\n''Edits will be lost upon running DoxyMWBot again. " +
+        ("Edit [{{fullurl:" + self.title + "|redirect=no}} " + self.title + "] instead." if
         doxymwglobal.config["mediaWiki_setupTransclusions"]
-        else "you must have transclusions enabled!") +
+        else "You must turn on transclusion to generate pages for you to add your content.") + "''" +
+        "</noinclude>" +
         
-        "<br><br></noinclude>" +
-        
+        #DisplayTitle (If there is one)
         ("\n{{DISPLAYTITLE:" + self.displayTitle + "}}" if
         self.displayTitle
         else "") +
         
+        #The doxygen infobox and actual page contents
+        "\n" + self.infobox +
         "\n" + self.contents + 
         "\n" + self.footer +
         
+        #The categories
         "\n<noinclude>" +
         "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "]]" + 
         "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "_" + self.type + "|" + sortKey + "]]" +
