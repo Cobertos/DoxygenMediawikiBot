@@ -475,7 +475,7 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
     #Gets the page title
     @property
     def mwtitle(self):
-        return DoxygenHTMLPage.globalPrefix + "_" + self.normtitle.title
+        return DoxygenHTMLPage.globalPrefix + " " + self.normtitle.title
     
     #Gets the page contents
     @property
@@ -504,7 +504,7 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
         #The categories
         "\n<noinclude>" +
         "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "]]" + 
-        "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "_" + self.type + "|" + sortKey + "]]" +
+        "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + " " + self.type + "|" + sortKey + "]]" +
         "\n</noinclude>"
         )
     
@@ -537,7 +537,7 @@ class TransclusionPage(DoxyMWUpdatePage):
        
     @property
     def mwtitle(self):
-        return ((TransclusionPage.globalPrefix + "_" if TransclusionPage.globalPrefix else "")
+        return ((TransclusionPage.globalPrefix + " " if TransclusionPage.globalPrefix else "")
             + self.normtitle.title)
     
     @property
@@ -613,7 +613,7 @@ class ImagePage(DoxyMWPage):
     
         self.filepath = fp
         self.filename = fn
-        self.normtitle = DoxyMWTitle(fp)
+        self.normtitle = DoxyMWTitle(fn)
     
     @property
     def mwtitle(self):

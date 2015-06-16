@@ -20,8 +20,8 @@ class DoxyMWSite(object):
         #All the doc category documents
         fac = GeneratorFactory(site=self.site)
         #All the doc category documents
-        fac.handleArg("-catr:" + docsCategory.title)
-        fac.handleArg("-subcatsr:" + docsCategory.title)
+        fac.handleArg("-catr:" + docsCategory.normtitle.title)
+        fac.handleArg("-subcatsr:" + docsCategory.normtitle.title)
         fac.handleArg("-page:" + docsCategory.mwtitle)
         #The transclusion category page
         fac.handleArg("-page:" + transCategory.mwtitle)
@@ -30,7 +30,7 @@ class DoxyMWSite(object):
         #Find all the transclusion pages and only select the ones that are just redirects
         #Don't delete any other transclusion pages
         fac = GeneratorFactory(site=self.site)
-        fac.handleArg("-catr:" + transCategory.title)
+        fac.handleArg("-catr:" + transCategory.normtitle.title)
         gen2 = fac.getCombinedGenerator()
         debugFiltered = doxymwglobal.option["printLevel"].value <= doxymwglobal.msgType.debug.value
         gen2 = pagegenerators.RedirectFilterPageGenerator(gen2, no_redirects=False, show_filtered=debugFiltered)
@@ -111,7 +111,7 @@ class DoxyMWSite(object):
             if modifyAPage(pageData):
                 updatedPages.append(pageData.mwtitle)
                 #This page made something, so make sure it's category is made
-                cat = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"] + "_" + pageData.type, parent=docsCategory)
+                cat = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"] + " " + pageData.type, parent=docsCategory)
                 neededCategories.add(cat)
                     
             #Create the transclusion pages
@@ -121,10 +121,10 @@ class DoxyMWSite(object):
                     updatedPages.append(transPageData.mwtitle)
                      
             #Upload all images
-            neededImages.union(pageData.imgs)
+            neededImages = neededImages.union(pageData.imgs)
             new = neededImages.getNew()
             for imgPageData in new:
-                imgPageData.updatePage(site) #Image are uploaded directly to the wiki, not page needed
+                imgPageData.updatePage(self.site) #Image are uploaded directly to the wiki, not page needed
                 updatedPages.append(imgPageData.mwtitle)
                 neededCategories.add(ImagePage.globalCategory)
                 
