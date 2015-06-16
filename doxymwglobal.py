@@ -41,7 +41,7 @@ config["mediaWiki_transclusionExternalCategory"] = "CodingDocs" #Category to add
 option = {}
 option["command"] = None
 option["interactive"] = False
-option["debug"] = None
+option["debug"] = []
 option["warnIsError"] = False
 class msgType(Enum):
     error = 3
@@ -90,12 +90,18 @@ def getUsage():
         "\n"
         "\n<opts> can be:"
         "\n  -i,   --interactive   Interactive mode"
-        "\n  -d:_, --debug:_       Debug where _ is in [doxygen, unsafeUpdate]"
+        "\n  -d:_, --debug:_       Debug where _ is in [doxygen, unsafeUpdate, whichDelete]"
         "\n  -p:_, --printLevel:_  Show msgs with severity _ in [error, warning, info, or debug]"
         "\n  -w,   --warnIsError   If warnings cause program to stop"
         "\n  -h,   --help          Prints help message")
-
         
 def printHelp():
     print(getUsage())
-    
+
+#Exceptions
+class DoxyMWException(Exception):
+    pass
+
+#Exception when the configuration isn't safe to use
+class ConfigException(DoxyMWException):
+    pass
