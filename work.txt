@@ -4,6 +4,7 @@
 #Better Category management
 #Define specific DoxygenHTMLPages that dont show up in the external category (For members pages in extern category)
 #make sure we don't update transExternCategory, only create it (possibly in the bottom task, add a flag if we're allow to touch it or not? FLAG ADDED!)
+#Make sure user submitted stuff doesn't have "_" in names (In config)
 
 #Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
 

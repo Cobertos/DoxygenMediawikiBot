@@ -429,7 +429,7 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
                     for page in wikiPages:
                         if link == page.filename:
                             internalLink = True
-                            link = page.title
+                            link = page.normtitle.title
                             break
                 
                 #What's the content?
