@@ -138,8 +138,7 @@ class DoxyMWSite(object):
         gen = self.generator()
         #Filter out all updated pages
         #Filter requires all strings be regex patterns in a list in a special object based on family name and language
-        #Also, all _ and spaces match both a _ and a space because both can be present in the title while the filter only checks for title with spaces
-        updatedPages = [re.sub("[_ ]","[_ ]",re.escape(str)) for str in updatedPages]
+        updatedPages = [re.escape(str) for str in updatedPages]
         updatedPages = { "freespace" : { "en" : updatedPages }}
         gen = pagegenerators.PageTitleFilterPageGenerator(gen, updatedPages)
         gen = pagegenerators.PreloadingGenerator(gen)

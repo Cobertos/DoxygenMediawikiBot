@@ -39,7 +39,7 @@ class DoxyMWTitle(object):
     @staticmethod
     def softNorm(title):
         normtitle = re.sub("_", " ", title) #_ are ' 's in MediaWiki titles
-        normtitle = re.sub(" +", " ", title) #' 's are collapsed to one space
+        normtitle = re.sub(" +", " ", normtitle) #' 's are collapsed to one space
         normtitle = normtitle.strip() #Leading and trailing spaces are stripped
         normtitle = normtitle[:1].capitalize() + normtitle[1:] #And the first letter is capitalized
         return normtitle
@@ -602,7 +602,7 @@ class TransclusionPage(DoxyMWUpdatePage):
         return False
 
 class ImagePage(DoxyMWPage):
-    globalCategory = CategoryPage(DoxygenHTMLPage.globalCategory.normtitle.title + "_IMAGE", parent=DoxygenHTMLPage.globalCategory)
+    globalCategory = CategoryPage(DoxygenHTMLPage.globalCategory.normtitle.title + " IMAGE", parent=DoxygenHTMLPage.globalCategory)
 
     def __init__(self, fp, fn, **kwargs):
         super().__init__(**kwargs)
