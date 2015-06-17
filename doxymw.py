@@ -11,11 +11,10 @@ import subprocess
 import errno
 
 import pywikibot
-from pywikibot import pagegenerators
-from pywikibot.pagegenerators import GeneratorFactory
 
 import doxymwglobal
-from doxymwpage import DoxyMWException, DoxygenHTMLPage, CategoryPage, BotUserPage, TransclusionPage, ImagePage
+from doxymwsite import DoxyMWSite
+from doxymwpage import DoxygenHTMLPage
 
 #Calls doxygen using a config file and outputs everything to a temporary path
 def generateDoxygenHTMLDocs():
@@ -182,9 +181,11 @@ def main():
             printHelp()
             return
         elif arg.find("-d:") == 0 or arg.find("--debug:") == 0:
-            option["debug"] = arg.split(":")[1]
-            if option["debug"] != "doxygen" and option["debug"] != "unsafeUpdate":
-                doxymwglobal.msg(doxymwglobal.msgType.error, "Invalid debug specified " + option["debug"], usage=True)
+            whichDebug = arg.split(":")[1]
+            if whichDebug != "doxygen" and whichDebug != "unsafeUpdate" and whichDebug != "whichDelete":
+                doxymwglobal.msg(doxymwglobal.msgType.error, "Invalid debug specified " + whichDebug, usage=True)
+            else:
+                option["debug"].append(whichDebug)
             
         elif arg.find("-p:") == 0 or arg.find("--printLevel:") == 0:
             printLevel = arg.split(":")[1]
@@ -216,7 +217,7 @@ def main():
             page.convert(wikiPages)
         
         #Debug the first portion, outputs everything to an html file
-        if option["debug"] == "doxygen":
+        if "doxygen" in option["debug"]:
             debugPath = doxymwglobal.config["doxygen_tmpPath"] + "/debug"
             try:
                 os.mkdir(debugPath)
@@ -233,161 +234,13 @@ def main():
     #( 4 )Perform all the wiki tasks
     #Make sure we're logged in
     site = pywikibot.Site()
-    site.login()
     
-    #Top level category objects
-    docsCategory = DoxygenHTMLPage.globalCategory
-    transCategory = TransclusionPage.globalCategory
-    transExternCategory = TransclusionPage.globalExternCategory
-    
-    #Returns a generator that matches all DoxyMWPages (That aren't non-redirect transclusions)
-    def DoxyMWPageGenerator():
-        #All the doc category documents
-        fac = GeneratorFactory()
-        #All the doc category documents
-        fac.handleArg("-catr:" + docsCategory.title)
-        fac.handleArg("-subcatsr:" + docsCategory.title)
-        fac.handleArg("-page:" + docsCategory.mwtitle)
-        #The transclusion category page
-        fac.handleArg("-page:" + transCategory.mwtitle)
-        gen1 = fac.getCombinedGenerator()
-                
-        #Find all the transclusion pages and only select the ones that are just redirects
-        #Don't delete any other transclusion pages
-        fac = GeneratorFactory()
-        fac.handleArg("-catr:" + transCategory.title)
-        gen2 = fac.getCombinedGenerator()
-        debugFiltered = doxymwglobal.option["printLevel"].value <= doxymwglobal.msgType.debug.value
-        gen2 = pagegenerators.RedirectFilterPageGenerator(gen2, no_redirects=False, show_filtered=debugFiltered)
-        
-        #Combined generator
-        gen = pagegenerators.CombinedPageGenerator([gen1, gen2])
-        gen = pagegenerators.PreloadingGenerator(gen)
-        return gen
-    
-    #CLEANUP - Cleans up MOST of DoxyMWBot's content from the wiki
-    #Note: This deletes all uploaded doxygen docs and any transclusions that are just redirects
-    #It will leave all other content alone
+    #Make a site, run the command
+    site = DoxyMWSite(site)
     if option["command"] == "cleanup":
-        gen = DoxyMWPageGenerator()
-        for page in gen:
-            try:
-                if not page.exists():
-                    continue
-                page.delete(reason="", prompt=option["interactive"])
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
-            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not delete page.")
-                continue
-        
-    #UPDATE - Create/update all the wiki pages, deletes all old/unused pages
+        site.cleanup()    
     if option["command"] == "update":
-        def modifyAPage(gen, data):
-            try:
-                page = gen.__next__()
-                data.updatePage(site, page)
-                return True
-            except DoxyMWException as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, str(e))
-                return False
-            except StopIteration as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "No page in generator")
-                return False
-        
-        #A set where we can retrieve all new items since last getNew call
-        class setNewest(set):
-            def __init__(self, *args):
-                super().__init__(*args)
-                self.oldSet = set()
-            
-            def getNew(self):
-                newStuff = self.difference(self.oldSet)
-                self.oldSet = self.copy()
-                return newStuff
-        
-        #TODO: Create the bots user page (only if theres aspecific bot account!)
-        
-        #Categories we need to make
-        neededCategories = setNewest()
-        neededCategories.add(docsCategory)
-        if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-            neededCategories.add(transCategory)
-            if transExternCategory:
-                neededCategories.add(transExternCategory)        
-        #Images we need to upload (for shared images between pages)
-        neededImages = setNewest()
-         
-        #Updated Pages
-        updatedPages = []
-        
-        #Create/update all the documentation pages
-        for pageData in wikiPages:
-            #Create/overwrite the actual documentation page
-            gen = pagegenerators.PagesFromTitlesGenerator([pageData.mwtitle])
-            if modifyAPage(gen, pageData):
-                updatedPages.append(pageData.mwtitle)
-                #This page made something, so make sure it's category is made
-                cat = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"] + "_" + pageData.type, parent=docsCategory)
-                neededCategories.add(cat)
-                    
-            #Create the transclusion pages
-            if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-                transPageData = pageData.getTransclusionPage()
-                gen = pagegenerators.PagesFromTitlesGenerator([transPageData.mwtitle])
-                if modifyAPage(gen, transPageData):
-                    updatedPages.append(transPageData.mwtitle)
-                     
-            #Upload all images
-            #Can't use union because it returns a set ;_;
-            for i in pageData.imgs:
-                neededImages.add(i)
-            
-            #Create all added images
-            new = neededImages.getNew()
-            for imgPageData in new:
-                imgPageData.updatePage(site, None) #Image are uploaded directly to the wiki, not page needed
-                updatedPages.append(imgPageData.mwtitle)
-                neededCategories.add(ImagePage.globalCategory)
-                
-            #Create all added categories
-            new = neededCategories.getNew()
-            for catPageData in new:
-                fac = GeneratorFactory()
-                fac.handleArg("-page:" + catPageData.mwtitle)
-                gen = fac.getCombinedGenerator()
-                gen = pagegenerators.PreloadingGenerator(gen)
-                if modifyAPage(gen, catPageData):
-                    updatedPages.append(catPageData.mwtitle)
-            
-        
-        #Delete all old pages
-        gen = DoxyMWPageGenerator()
-        #Filter out all updated pages
-        #Filter requires all strings be regex patterns in a list in a special object based on family name and language
-        updatedPages = [re.escape(str) for str in updatedPages]
-        updatedPages = { "freespace" : { "en" : updatedPages }}
-        gen = pagegenerators.PageTitleFilterPageGenerator(gen, updatedPages)
-        for page in gen:
-            try:
-                page.delete(reason="", prompt=option["interactive"])
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
-            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not delete old page.")
-                continue
-                
-        #Uncache all the pages
-        """
-        gen = DoxyMWPageGenerator()
-        for page in gen:
-            try:
-                if not page.exists():
-                    continue
-                page.purge
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " purged")
-            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not purge page.")
-                continue
-        """
+        site.update(wikiPages)
         
     #( 5 ) We're done!
     doxymwglobal.msg(doxymwglobal.msgType.info, "Done")
