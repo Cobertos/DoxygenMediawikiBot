@@ -79,7 +79,7 @@ class DoxyMWPage(object):
         self.canEdit = canEdit
 
     @property #Should return a list of pages to make
-    def newPages(self)
+    def newPages(self):
         return [self]
         
     @property #Should return the MediaWiki title
@@ -487,9 +487,9 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
         #If we're not setting up transclusions, we add all the documentation to the nav categories,
         #otherwise the transclusions get added instead
         if not config["mediaWiki_setupTransclusions"]:
-            pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.type, canEdit=False)
+            pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.type, canEdit=False))
             if not config["mediaWiki_navCategoryExcludeMembers"] or self.target.type != "MEMBERS":
-                pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle, canEdit=False)
+                pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle, canEdit=False))
         return pages
     
     #Gets the page title
@@ -526,8 +526,8 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
         "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "]]" + 
         ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + "|" + sortKey + "]]" +
         ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.type + "|" + sortKey + "]]" if
-        (not config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS") else
-        else "")) if
+        (not config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS")
+        else "") if
         not config["mediaWiki_setupTransclusions"]
         else "") + 
         
@@ -589,8 +589,8 @@ class TransclusionPage(DoxyMWUpdatePage):
             "[[" + TransclusionPage.globalCategory.mwtitle + "]]" + 
             ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + "|" + sortKey + "]]" +
             ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.target.type + "|" + sortKey + "]]" if
-            (not config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS") else
-            else "")) if
+            (not config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS")
+            else "") if
             not config["mediaWiki_setupTransclusions"]
             else "")
         )

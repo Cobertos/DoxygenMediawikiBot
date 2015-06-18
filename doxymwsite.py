@@ -68,7 +68,7 @@ class DoxyMWSite(object):
                 return False
                 
         #A set where we can retrieve all new items since last getNew call
-        class setNewest(set):
+        """class setNewest(set):
             def __init__(self, *args):
                 super().__init__(*args)
                 self.oldSet = set()
@@ -81,55 +81,31 @@ class DoxyMWSite(object):
             def getNew(self):
                 newStuff = self.difference(self.oldSet)
                 self.oldSet = self.copy()
-                return newStuff
+                return newStuff"""
+          
+        #Images we need to upload (for shared images between pages)
+        #neededImages = setNewest()
+         
+        #Retrieve all the pages we're making into a set
+        allPages = set()
         
         #One shot pages we need to make
-        #botUserPage = BotUserPage()
+        #allPages.add(BotUserPage())
         
-        #Top level category objects
-        docsCategory = DoxygenHTMLPage.globalCategory
-        transCategory = TransclusionPage.globalCategory
-        
-        #Categories we need to make
-        neededCategories = setNewest()
-        neededCategories.add(docsCategory)
-        if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-            neededCategories.add(transCategory)
-            
-        #Images we need to upload (for shared images between pages)
-        neededImages = setNewest()
-         
-        #Updated Pages
-        updatedPages = []
-        
-        #Create/update all the documentation pages
+        #The DoxygenHTMLPages and everything they generate
         for pageData in wikiPages:
-            #Create/overwrite the actual documentation page
+            allPages.union(pageData.newPages) #Default page
+            if doxymwglobal.config["mediaWiki_setupTransclusions"]:
+                allPages.union(pageData.getTransclusionPage().newPages) #Transclusion page
+            
+            for imgPageData in pageData.imgs:
+                allPages.union(imgPageData.newPages) #Images
+        
+        #Update all the pages
+        updatedPages = []
+        for pageData in allPages:
             if modifyAPage(pageData):
                 updatedPages.append(pageData.mwtitle)
-                #This page made something, so make sure it's category is made
-                cat = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"] + " " + pageData.type, parent=docsCategory)
-                neededCategories.add(cat)
-                    
-            #Create the transclusion pages
-            if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-                transPageData = pageData.getTransclusionPage()
-                if modifyAPage(transPageData):
-                    updatedPages.append(transPageData.mwtitle)
-                     
-            #Upload all images
-            neededImages = neededImages.union(pageData.imgs)
-            new = neededImages.getNew()
-            for imgPageData in new:
-                imgPageData.updatePage(self.site) #Image are uploaded directly to the wiki, not page needed
-                updatedPages.append(imgPageData.mwtitle)
-                neededCategories.add(ImagePage.globalCategory)
-                
-            #Create all added categories
-            new = neededCategories.getNew()
-            for catPageData in new:
-                if modifyAPage(catPageData):
-                    updatedPages.append(catPageData.mwtitle)
         
         #Delete all old pages
         gen = self.generator()
