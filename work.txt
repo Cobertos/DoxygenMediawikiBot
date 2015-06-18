@@ -1,28 +1,29 @@
 #Todo:
-#Add doxygen styles to the mediawiki common css or something
+#Better category management?
 
-#Better Category management
-#Define specific DoxygenHTMLPages that dont show up in the external category (For members pages in extern category)
-#make sure we don't update transExternCategory, only create it (possibly in the bottom task, add a flag if we're allow to touch it or not? FLAG ADDED!)
-#Make sure user submitted stuff doesn't have "_" in names (In config)
+#Add doxygen styles to the mediawiki common css or something
+#Add user page (actually add it to site)
 
 #Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
-
 #The javascript for the box hiding?
 
 #fix all the TODOS in the code
-#Replace old docs that have one transclusion somewhere else with a message? (If we can even do that)
 #Improve output so that it doesn't look like piss
+#Harmonize documentation (specifically the usage, the user page, the readme)(Also let users know about title normalization and how it affects them)
 
 #Stuff I'd like to add but probably won't (not worth the effort for the gain at the current time):
+#Handle old documents that are deleted better (perhaps present a message if a transclusion is detected or add their transclusions to a category)
+#Make the doxymwbot infobox use the same styles as media wikis contents box so we don't have to duplicate styles & Add a "[hide]" thing to the doxymw info box
 #Checks to see if user has privileges (we just assume they do)
-#Add a "[hide]" thing to the doxymw info box
-#Make the doxymwbot infobox use the same styles as media wikis contents box so we don't have to duplicate styles
-#Harmonize documentation (specifically the usage, the user page, the readme)
-#Update specific things on transclusion pages, like categories (something that doesnt harm the content?) if we need to? (make categories get included from transclusions!!?)
 
-#Changed in next commit:
-#Fix the transclusion template listed on the transclusion page
-#More robust title normalization
-#A bot user page
-#Make sure the "delete old pages" works because it compares to title() and not title(underscores=True) (SHOULD BE FIXED, with new normilization)
+#I'd rather not worry about integrating with current documentation and just stick to making everything in our own bubble and having the user populate it from
+#If we REALLY want to integrate, then we could specify a new command for that. Otherwise, just don't touch transclusions (or other pages) that already exist
+
+
+#Changed in next update:
+#Removed template appending functionality
+#Removed external category
+#Added navCategory
+#Moved docs type categories to navCategory
+#Option to exclude MembersList from main navCategory
+#Added canEdit=False to navCategories (so we can create them but not overwrite them if they exist)

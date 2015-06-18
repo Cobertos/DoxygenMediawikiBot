@@ -16,7 +16,6 @@ class DoxyMWSite(object):
     def generator(self, preload=False):
         docsCategory = DoxygenHTMLPage.globalCategory
         transCategory = TransclusionPage.globalCategory
-        transExternCategory = TransclusionPage.globalExternCategory
         #All the doc category documents
         fac = GeneratorFactory(site=self.site)
         #All the doc category documents
@@ -90,15 +89,13 @@ class DoxyMWSite(object):
         #Top level category objects
         docsCategory = DoxygenHTMLPage.globalCategory
         transCategory = TransclusionPage.globalCategory
-        transExternCategory = TransclusionPage.globalExternCategory
         
         #Categories we need to make
         neededCategories = setNewest()
         neededCategories.add(docsCategory)
         if doxymwglobal.config["mediaWiki_setupTransclusions"]:
             neededCategories.add(transCategory)
-            if transExternCategory:
-                neededCategories.add(transExternCategory)        
+            
         #Images we need to upload (for shared images between pages)
         neededImages = setNewest()
          
