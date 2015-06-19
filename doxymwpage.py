@@ -485,6 +485,13 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
     @property
     def newPages(self):
         pages = [self, DoxygenHTMLPage.globalCategory]
+        
+        if doxymwglobal.config["mediaWiki_setupTransclusions"]:
+            pages.extend(self.getTransclusionPage().newPages) #Transclusion page
+            
+        for imgPageData in self.imgs:
+            pages.extend(imgPageData.newPages) #Images
+        
         #If we're not setting up transclusions, we add all the documentation to the nav categories,
         #otherwise the transclusions get added instead
         if not doxymwglobal.config["mediaWiki_setupTransclusions"]:

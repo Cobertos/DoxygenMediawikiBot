@@ -58,24 +58,35 @@ class DoxyMWSite(object):
         
     #UPDATE - Create/update all the wiki pages, deletes all old/unused pages
     def update(self, wikiPages):
-
         #Retrieve all the pages we're making into a set
         allPages = set()
+        allCategories = set()
         
         #One shot pages we need to make
         #allPages.add(BotUserPage())
         
         #The DoxygenHTMLPages and everything they generate
         for pageData in wikiPages:
-            allPages = allPages.union(pageData.newPages) #Default page
-            if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-                allPages = allPages.union(pageData.getTransclusionPage().newPages) #Transclusion page
-            
-            for imgPageData in pageData.imgs:
-                allPages = allPages.union(imgPageData.newPages) #Images
+            newPages = pageData.newPages #All pages produced by the DoxygenHTMLPage
+            for page in newPages[:]:
+                if isinstance(page, CategoryPage):
+                    newPages.remove(page)
+                    allCategories.add(page)
+                
+            allPages = allPages.union(newPages)
         
         #Update all the pages
         updatedPages = []
+        
+        #Update categories first
+        for pageData in allCategories:
+            try:
+                pageData.updatePage(self.site)
+                #Only put in updatedPages if it was successful
+                updatedPages.append(pageData.mwtitle)
+            except doxymwglobal.DoxyMWException as e:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, str(e)) 
+        
         for pageData in allPages:
             try:
                 pageData.updatePage(self.site)

@@ -1,8 +1,11 @@
 #Todo:
-#Better category management?
+#Make sure cleanup is up to date
 
+#Better category management (if I can get this right it'll cut down on so much shit in doxymwpage)
+
+#Add a .deletePage to all page classes (so we know how to delete something we made)
 #Add doxygen styles to the mediawiki common css or something
-#Add user page (actually add it to site)
+#Add user page (code is ready to go)
 
 #Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
 #The javascript for the box hiding?
