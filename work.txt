@@ -1,11 +1,8 @@
 #Todo:
 #Make sure cleanup is up to date
 
-#Better category management (if I can get this right it'll cut down on so much shit in doxymwpage)
-
 #Add a .deletePage to all page classes (so we know how to delete something we made)
 #Add doxygen styles to the mediawiki common css or something
-#Add user page (code is ready to go)
 
 #Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
 #The javascript for the box hiding?
@@ -18,15 +15,16 @@
 #Handle old documents that are deleted better (perhaps present a message if a transclusion is detected or add their transclusions to a category)
 #Make the doxymwbot infobox use the same styles as media wikis contents box so we don't have to duplicate styles & Add a "[hide]" thing to the doxymw info box
 #Checks to see if user has privileges (we just assume they do)
+#We add docs to the nav category unless transclusions are made, we add those instead (this is so that the nav categories can be used for navigating the docs)
+#    The problem is that the documentation will never actually have a navCategory tag and users have to use the infobox which might not be the most intuitive
+#    We'd have to make fake categories for the documentation that redirects to the real categories which is populated with transclusions if we want this work (not work the effort tho)
 
+#Note:
 #I'd rather not worry about integrating with current documentation and just stick to making everything in our own bubble and having the user populate it from
 #If we REALLY want to integrate, then we could specify a new command for that. Otherwise, just don't touch transclusions (or other pages) that already exist
 
 
 #Changed in next update:
-#Removed template appending functionality
-#Removed external category
-#Added navCategory
-#Moved docs type categories to navCategory
-#Option to exclude MembersList from main navCategory
-#Added canEdit=False to navCategories (so we can create them but not overwrite them if they exist)
+#Better category management (if I can get this right it'll cut down on so much shit in doxymwpage)
+#Added user page
+#Cleaned up links in infobox

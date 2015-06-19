@@ -16,6 +16,7 @@ class DoxyMWSite(object):
     def generator(self, preload=False):
         docsCategory = DoxygenHTMLPage.globalCategory
         transCategory = TransclusionPage.globalCategory
+        navCategory = DoxygenHTMLPage.globalNavCategory
         #All the doc category documents
         fac = GeneratorFactory(site=self.site)
         #All the doc category documents
@@ -24,6 +25,10 @@ class DoxyMWSite(object):
         fac.handleArg("-page:" + docsCategory.mwtitle)
         #The transclusion category page
         fac.handleArg("-page:" + transCategory.mwtitle)
+        #Nav category category pages (Not the pages inside of it)
+        fac.handleArg("-subcatsr:" + navCategory.normtitle.title)
+        fac.handleArg("-page:" + navCategory.mwtitle)
+        #User page
         gen1 = fac.getCombinedGenerator()
                 
         #Find all the transclusion pages and only select the ones that are just redirects
@@ -63,7 +68,8 @@ class DoxyMWSite(object):
         allCategories = set()
         
         #One shot pages we need to make
-        #allPages.add(BotUserPage())
+        #if doxymwglobal.config["mediaWiki_makeUserPage"]:
+        #    allPages.add(BotUserPage())
         
         #The DoxygenHTMLPages and everything they generate
         for pageData in wikiPages:
