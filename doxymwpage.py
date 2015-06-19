@@ -78,6 +78,18 @@ class DoxyMWPage(object):
         self.canCreate = canCreate
         self.canEdit = canEdit
 
+    def __hash__(self):
+        return hash(self.mwtitle)
+    
+    def __eq__(self, other):
+        if isinstance(other, DoxyMWPage):
+            return self.mwtitle == other.mwtitle
+        return False
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
+        
+        
     @property #Should return a list of pages to make
     def newPages(self):
         return [self]
@@ -191,17 +203,6 @@ class CategoryPage(DoxyMWUpdatePage):
         self.parent = parent
         self.hidden = hidden
     
-    def __hash__(self):
-        return hash(self.normtitle.title)
-    
-    def __eq__(self, other):
-        if isinstance(other, CategoryPage):
-            return self.normtitle.title == other.normtitle.title
-        return False
-    
-    def __ne__(self, other):
-        return not self.__eq__(other)
-    
     def isInCategory(self, page):
         for pageCategory in page.categories():
             if pageCategory.title() == self.mwtitle:
@@ -243,7 +244,7 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
 
     globalNavCategory = None
     if "mediaWiki_navCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_navCategory"] != "":
-        globaNavCategory = CategoryPage(doxymwglobal.config["mediaWiki_navCategory"],hidden=True)
+        globalNavCategory = CategoryPage(doxymwglobal.config["mediaWiki_navCategory"])
     else:
         raise doxymwglobal.ConfigException("A nav category must be defined")
     
@@ -486,9 +487,9 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
         pages = [self, DoxygenHTMLPage.globalCategory]
         #If we're not setting up transclusions, we add all the documentation to the nav categories,
         #otherwise the transclusions get added instead
-        if not config["mediaWiki_setupTransclusions"]:
+        if not doxymwglobal.config["mediaWiki_setupTransclusions"]:
             pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.type, canEdit=False))
-            if not config["mediaWiki_navCategoryExcludeMembers"] or self.target.type != "MEMBERS":
+            if not doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] or self.target.type != "MEMBERS":
                 pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle, canEdit=False))
         return pages
     
@@ -526,9 +527,9 @@ class DoxygenHTMLPage(DoxyMWUpdatePage):
         "\n[[" + DoxygenHTMLPage.globalCategory.mwtitle + "]]" + 
         ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + "|" + sortKey + "]]" +
         ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.type + "|" + sortKey + "]]" if
-        (not config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS")
+        (not doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS")
         else "") if
-        not config["mediaWiki_setupTransclusions"]
+        not doxymwglobal.config["mediaWiki_setupTransclusions"]
         else "") + 
         
         "\n</noinclude>"
@@ -560,9 +561,9 @@ class TransclusionPage(DoxyMWUpdatePage):
     @property
     def newPages(self):
         pages = [self, TransclusionPage.globalCategory]
-        if config["mediaWiki_setupTransclusions"]:
+        if doxymwglobal.config["mediaWiki_setupTransclusions"]:
             pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.target.type, canEdit=False))
-            if not config["mediaWiki_navCategoryExcludeMembers"] or self.target.type != "MEMBERS":
+            if not doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] or self.target.type != "MEMBERS":
                 pages.append(CategoryPage(DoxygenHTMLPage.globalNavCategory.mwtitle, canEdit=False))
         return pages
     
@@ -589,9 +590,9 @@ class TransclusionPage(DoxyMWUpdatePage):
             "[[" + TransclusionPage.globalCategory.mwtitle + "]]" + 
             ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + "|" + sortKey + "]]" +
             ("\n[[" + DoxygenHTMLPage.globalNavCategory.mwtitle + " " + self.target.type + "|" + sortKey + "]]" if
-            (not config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS")
+            (not doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] or self.type != "MEMBERS")
             else "") if
-            not config["mediaWiki_setupTransclusions"]
+            not doxymwglobal.config["mediaWiki_setupTransclusions"]
             else "")
         )
         

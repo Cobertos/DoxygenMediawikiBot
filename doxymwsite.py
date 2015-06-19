@@ -58,34 +58,7 @@ class DoxyMWSite(object):
         
     #UPDATE - Create/update all the wiki pages, deletes all old/unused pages
     def update(self, wikiPages):
-        #Repeatedly used snippet
-        def modifyAPage(data):
-            try:
-                data.updatePage(self.site)
-                return True
-            except doxymwglobal.DoxyMWException as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, str(e))
-                return False
-                
-        #A set where we can retrieve all new items since last getNew call
-        """class setNewest(set):
-            def __init__(self, *args):
-                super().__init__(*args)
-                self.oldSet = set()
-            
-            def union(self, otherSet):
-                ret = setNewest(super().union(otherSet))
-                ret.oldSet = self.oldSet.copy()
-                return ret
-            
-            def getNew(self):
-                newStuff = self.difference(self.oldSet)
-                self.oldSet = self.copy()
-                return newStuff"""
-          
-        #Images we need to upload (for shared images between pages)
-        #neededImages = setNewest()
-         
+
         #Retrieve all the pages we're making into a set
         allPages = set()
         
@@ -94,18 +67,22 @@ class DoxyMWSite(object):
         
         #The DoxygenHTMLPages and everything they generate
         for pageData in wikiPages:
-            allPages.union(pageData.newPages) #Default page
+            allPages = allPages.union(pageData.newPages) #Default page
             if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-                allPages.union(pageData.getTransclusionPage().newPages) #Transclusion page
+                allPages = allPages.union(pageData.getTransclusionPage().newPages) #Transclusion page
             
             for imgPageData in pageData.imgs:
-                allPages.union(imgPageData.newPages) #Images
+                allPages = allPages.union(imgPageData.newPages) #Images
         
         #Update all the pages
         updatedPages = []
         for pageData in allPages:
-            if modifyAPage(pageData):
+            try:
+                pageData.updatePage(self.site)
+                #Only put in updatedPages if it was successful
                 updatedPages.append(pageData.mwtitle)
+            except doxymwglobal.DoxyMWException as e:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, str(e)) 
         
         #Delete all old pages
         gen = self.generator()
