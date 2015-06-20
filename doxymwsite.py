@@ -5,7 +5,7 @@ from pywikibot import pagegenerators
 from pywikibot.pagegenerators import GeneratorFactory
 
 import doxymwglobal
-from doxymwpage import DoxygenHTMLPage, CategoryPage, BotUserPage, TransclusionPage, ImagePage
+from doxymwpage import DoxygenHTMLPage, CategoryPage, BotUserPage, TransclusionPage, ImagePage, StylesPage
 
 class DoxyMWSite(object):
     def __init__(self, site):
@@ -39,28 +39,32 @@ class DoxyMWSite(object):
         debugFiltered = doxymwglobal.option["printLevel"].value <= doxymwglobal.msgType.debug.value
         gen2 = pagegenerators.RedirectFilterPageGenerator(gen2, no_redirects=False, show_filtered=debugFiltered)
         
+        #Special pages that need to be deleted with the pages strategy
+        special = []
+        special.add(StylesPage())
+        
         #Combined generator
         gen = pagegenerators.CombinedPageGenerator([gen1, gen2])
         if preload: #Only use if this is the last generator in your generator list
             gen = pagegenerators.PreloadingGenerator(gen)
-        return gen
+        return gen, special
     
     #CLEANUP - Cleans up MOST of DoxyMWBot's content from the wiki
     #Note: This deletes all uploaded doxygen docs and any transclusions that are just redirects
     #It will leave all other content alone
     def cleanup(self):
-        gen = self.generator(preload=True)
+        gen, special = self.generator(preload=True)
         for page in gen:
-            try:
-                if not page.exists():
-                    continue
-                page.delete(reason="", prompt=doxymwglobal.option["interactive"])
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
-            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not delete page.")
+            if not page.exists()
                 continue
-
-        
+            try:
+                didDelete = page.delete(reason="", prompt=doxymwglobal.option["interactive"])
+                if didDelete:
+                    doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
+            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "Page " + page.title() + " could not be deleted: " + str(e))
+                continue
+            
     #UPDATE - Create/update all the wiki pages, deletes all old/unused pages
     def update(self, wikiPages):
         #Retrieve all the pages we're making into a set
@@ -68,8 +72,8 @@ class DoxyMWSite(object):
         allCategories = set()
         
         #One shot pages we need to make
-        #if doxymwglobal.config["mediaWiki_makeUserPage"]:
-        #    allPages.add(BotUserPage())
+        if doxymwglobal.config["mediaWiki_makeUserPage"]:
+            allPages.add(BotUserPage())
         
         #The DoxygenHTMLPages and everything they generate
         for pageData in wikiPages:
@@ -126,14 +130,15 @@ class DoxyMWSite(object):
         
         for page in gen:
             try:
-                page.delete(reason="", prompt=doxymwglobal.option["interactive"])
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
+                didDelete = page.delete(reason="", prompt=doxymwglobal.option["interactive"])
+                if didDelete:
+                    doxymwglobal.msg(doxymwglobal.msgType.info, "Old page " + page.title() + " deleted")
             except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not delete old page.")
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "Old page " + page.title() + " could not be deleted: " + str(e))
                 continue
                 
         #Uncache all the pages
-        gen = self.generator(preload=True)
+        gen, special = self.generator(preload=True)
         for page in gen:
             try:
                 if not page.exists():
@@ -141,5 +146,17 @@ class DoxyMWSite(object):
                 page.purge()
                 doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " purged")
             except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
-                doxymwglobal.msg(doxymwglobal.msgType.warning, "Could not purge page.")
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "Page " + page.title() + " could not be purged: " + str(e))
                 continue
+                
+        for pageData in special:
+            page = pageData.getPage(self.site)
+            try:
+                if not page.exists():
+                    continue
+                page.purge()
+                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " purged")
+            except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
+                doxymwglobal.msg(doxymwglobal.msgType.warning, "Page " + page.title() + " could not be purged: " + str(e))
+                continue
+            

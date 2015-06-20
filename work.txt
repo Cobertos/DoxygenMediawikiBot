@@ -1,15 +1,5 @@
 #Todo:
-#Make sure cleanup is up to date
-
-#Add a .deletePage to all page classes (so we know how to delete something we made)
-#Add doxygen styles to the mediawiki common css or something
-
-#Stick the inheritance image in a little box and make the little thing a caption on it (the "This is an inheritance diagram of...")
-#The javascript for the box hiding?
-
-#fix all the TODOS in the code
-#Improve output so that it doesn't look like piss
-#Harmonize documentation (specifically the usage, the user page, the readme)(Also let users know about title normalization and how it affects them)
+#Fix the infobox (just give it a really hacky fix)
 
 #Stuff I'd like to add but probably won't (not worth the effort for the gain at the current time):
 #Handle old documents that are deleted better (perhaps present a message if a transclusion is detected or add their transclusions to a category)
@@ -18,13 +8,23 @@
 #We add docs to the nav category unless transclusions are made, we add those instead (this is so that the nav categories can be used for navigating the docs)
 #    The problem is that the documentation will never actually have a navCategory tag and users have to use the infobox which might not be the most intuitive
 #    We'd have to make fake categories for the documentation that redirects to the real categories which is populated with transclusions if we want this work (not work the effort tho)
+#Make categories and things that involve cross page references (aside from pages that generate more than one page, and those references) the responsibility of the site
+#   This then allows the responsbility of how we structure everything over the site to be the site's responsibility (important for deleting)
+#Make sure that we can take pages and stick them in empty objects (like an __init__ for just pages), so we can properly .delete pages
+#   References the chang before it in thislist. Also remove special in generator because its messing up theway we make everything
+#Unimplemented stuff in global
+#fix all the TODOS in the code
+#The javascript for the box hiding?
+#Add back the ...*...... progress bar in doxymw.py instead of the "converting: ___"
 
 #Note:
-#I'd rather not worry about integrating with current documentation and just stick to making everything in our own bubble and having the user populate it from
+#I'd rather not worry about integrating with current documentation on a and just stick to making everything in our own bubble and having the user populate it from
 #If we REALLY want to integrate, then we could specify a new command for that. Otherwise, just don't touch transclusions (or other pages) that already exist
 
 
 #Changed in next update:
-#Better category management (if I can get this right it'll cut down on so much shit in doxymwpage)
-#Added user page
-#Cleaned up links in infobox
+#Add a .deletePage to all page classes (so we know how to delete something we made)
+#Add doxygen styles to the mediawiki common css or something automatically
+#Added special to generate pageData's in doxymwsite to properly delete special pages
+#Properly tuned all print, raise and msg statements
+#Harmonize documentation (specifically the usage, the user page, the readme)(Also let users know about title normalization and how it affects them)
