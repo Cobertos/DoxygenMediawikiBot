@@ -26,8 +26,5 @@ echo Running PyWikibot setup...
 cd PyWikibot
 python setup.py install
 
-::echo Creating __init__ for PyWikibot...
-::echo. > PyWikibot\__init__.py
-
 echo Make sure to setup the user config as well as enabled all the API stuff on the wiki
 pause

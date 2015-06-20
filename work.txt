@@ -1,5 +1,5 @@
 #Todo:
-#Fix the infobox (just give it a really hacky fix)
+#Fix the infobox
 
 #Stuff I'd like to add but probably won't (not worth the effort for the gain at the current time):
 #Handle old documents that are deleted better (perhaps present a message if a transclusion is detected or add their transclusions to a category)
@@ -20,11 +20,3 @@
 #Note:
 #I'd rather not worry about integrating with current documentation on a and just stick to making everything in our own bubble and having the user populate it from
 #If we REALLY want to integrate, then we could specify a new command for that. Otherwise, just don't touch transclusions (or other pages) that already exist
-
-
-#Changed in next update:
-#Add a .deletePage to all page classes (so we know how to delete something we made)
-#Add doxygen styles to the mediawiki common css or something automatically
-#Added special to generate pageData's in doxymwsite to properly delete special pages
-#Properly tuned all print, raise and msg statements
-#Harmonize documentation (specifically the usage, the user page, the readme)(Also let users know about title normalization and how it affects them)

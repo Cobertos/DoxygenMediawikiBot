@@ -78,7 +78,7 @@ def generateDoxygenHTMLDocs():
                 #Warn about specific parameters
                 for warn in warnParams.keys():
                     if k == warn and v != warnParams[warn]:
-                        doxymwglobal.msg(doxymwglobal.warning, "Parameter " + warn + " is not set to " + warnParams[warn])
+                        doxymwglobal.msg(doxymwglobal.warning, "Doxygen config has parameter " + warn + " not set to " + warnParams[warn] + " which may cause problems.")
                 
         #Append the force tags to the end (overwrite the other values)
         forceParams = params["doxygen_paramsForce"]
@@ -129,7 +129,6 @@ def readDoxygenHTMLDocs():
             
             #Filter out by extension
             if fileExt != ".html":
-                print(".", end="", flush=True)
                 continue
        
             #Check special files and type
@@ -147,15 +146,12 @@ def readDoxygenHTMLDocs():
             
             #Filter out the html files without type
             if fileDoxyType == None:
-                print(".", end="", flush=True)
                 continue
             
-            print("*", end="", flush=True)
             
             #Make the doxygen wiki page object
             page = DoxygenHTMLPage(fileAbsPath, fileTail, fileDoxyType)
             wikiPages.append(page)
-    print("")
     return wikiPages
     
 def main():
@@ -225,7 +221,7 @@ def main():
                 if e.errno != errno.EEXIST:
                     raise #Rethrow if not a folder already exists error
             for page in wikiPages:
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Debug output " + page.filename)
+                doxymwglobal.msg(doxymwglobal.msgType.debug, "Debug output " + page.filename)
                 fp = open(debugPath + "/" + page.filename, 'w', errors="replace")
                 strr = page.mwtitle+"<br><br>"+page.mwcontents
                 fp.write(strr)

@@ -6,7 +6,9 @@ Licensed under the MIT License (should be included with the source code in LICEN
 
 SETUP:
 You must create the family for your PyWikibot as described in their documentation. You must also run the 
-setup.bat to setup the submodules properly (so they can be used as Python packages)
+You must also use pip (pythons package manager) to download:
+BeautifulSoup4
+PyWikibot
 
 Configure your options in the `config` dictionary in `doxymwglobal.py`
 
@@ -25,3 +27,12 @@ USAGE: python doxymw.py <command> [<opts>]
   -w,   --warnIsError   If warnings cause program to stop
   -h,   --help          Prints help message
 ```
+
+FAQ:
+Why do some page names have '!' characters in them?
+Page titles in MediaWiki are not allowed to contain a few characters for example '<', '>', and '?'.
+To compensate for this all invalid characters are changed to '!'s and '_'s to ' ' by MediaWiki default
+MediaWiki's `{{DISPLAYTITLE:_}}` magic word is also used when available to show the correct page title on the page (but the actual page link and title in the database will contain '!'s)
+
+Find a bug? Encounter an error?
+Send me a message on GitHub or somewhere
