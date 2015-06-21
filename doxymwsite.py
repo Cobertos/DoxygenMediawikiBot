@@ -123,9 +123,9 @@ class DoxyMWSite(object):
                 navCategoryAdd = transPageData
                 
             #NavCategory Stuff
-            navCategoryAdd.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + pageData.type, canEdit=False))
+            navCategoryAdd.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + pageData.type, parent=DoxygenHTMLPage.globalNavCategory))
             if not (doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] and pageData.type == "MEMBERS"):
-                navCategoryAdd.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title, canEdit=False))
+                navCategoryAdd.addCategory(DoxygenHTMLPage.globalNavCategory)
         
             #Add all the info box pages
             for infoBoxPageData in infoBoxPages:
