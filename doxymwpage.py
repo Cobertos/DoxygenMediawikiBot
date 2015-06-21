@@ -12,7 +12,7 @@ import doxymwglobal
 #Small class for generating title and displayTitle
 #This doesnt include namespace, fragment, or anything else, just titles
 # + title - Normalized title
-# + displayTitle - blank string or a display title fragment
+# + displayTitle - The least normalized title. Depends on your use of avoid
 class DoxyMWTitle(object):
 
     def __init__(self, title, avoid=True):
@@ -30,6 +30,13 @@ class DoxyMWTitle(object):
             
         if self.title == None:
             raise DoxyMWException("Title failed normalization. " + self.reasonFail)
+    
+    @property
+    def displayTitle(self):
+        if self._displayTitle:
+            return self._displayTitle
+        else:
+            return self.title
     
     @property
     def mwdisplaytitle(self):
@@ -104,12 +111,12 @@ class DoxyMWStrategy(object):
 #We own the entire page, just update it directly    
 class FullPageStrategy(DoxyMWStrategy):
     def updatePage(self, pageData, page):
-        if not checkPage(page):
+        if not self.checkPage(page):
             doxymwglobal.msg(doxymwglobal.msgType.debug, "Page " + page.title() + " failed strategy edit check for pageData " + pageData.mwtitle)
             return False
             
         try:
-            if page.exists():
+            if page.exists() and not page.isRedirectPage():
                 page.get()
                 if page.text == pageData.mwcontents:
                     return False #Don't need to make or update
@@ -122,15 +129,20 @@ class FullPageStrategy(DoxyMWStrategy):
         
         return True
     
-    def deletePage(self, pageData, page):
+    def deletePage(self, page):
+        if not self.checkPage(page):
+            doxymwglobal.msg(doxymwglobal.msgType.debug, "Page " + page.title() + " failed strategy edit check.")
+            return False
+            
         try:
-            didDelete = page.delete(reason="", prompt=doxymwglobal.option["interactive"])
-            if didDelete:
-                doxymwglobal.msg(doxymwglobal.msgType.info, "Page " + page.title() + " deleted")
-            return didDelete
+            page.delete(reason="", prompt=doxymwglobal.option["interactive"])
         except (pywikibot.LockedPage, pywikibot.EditConflict, pywikibot.SpamfilterError) as e:
             doxymwglobal.msg(doxymwglobal.msgType.warning, "Page " + page.title() + " could not be deleted: " + str(e))
             return False
+            
+        #TODO: There is no better way to tell if the user actually deleted the page through the prompt (unless we supplied our own)
+        #That is... without performing another API query
+        return True
             
 #Only updates the stuff between some delimiter on the page with mwcontents
 class SectionStrategy(DoxyMWStrategy):
@@ -148,7 +160,7 @@ class SectionStrategy(DoxyMWStrategy):
     
     def _updatePage(self, contents, page):
         if not self.checkPage(page):
-            doxymwglobal.msg(doxymwglobal.msgType.debug, "Page " + page.title() + " failed strategy edit check for pageData " + pageData.mwtitle)
+            doxymwglobal.msg(doxymwglobal.msgType.debug, "Page " + page.title() + " failed strategy edit check.")
             return False
         
         try:
@@ -181,13 +193,18 @@ class SectionStrategy(DoxyMWStrategy):
         
         return True
         
-    def deletePage(self, pageData, page):
+    def deletePage(self, page):
         return self._updatePage("", page)
         
 #For updating files (images)
 class FileStrategy(FullPageStrategy):
     #Same delete but different updatePage
     def updatePage(self, pageData, page):
+        if not self.checkPage(page):
+            doxymwglobal.msg(doxymwglobal.msgType.debug, "Page " + page.title() + " failed strategy edit check for pageData " + pageData.mwtitle)
+            return False
+        
+        site = pywikibot.Site() #TODO: Bad, replace this
         filePage = pywikibot.FilePage(site, pageData.normtitle.title)
         
         #If page exists, test hash against uploaded image
@@ -204,7 +221,7 @@ class FileStrategy(FullPageStrategy):
         
         #Otherwise upload that bad boy/girl/non-binary gender entity
         doxymwglobal.msg(doxymwglobal.msgType.info, "File " + pageData.mwtitle + " being uploaded")
-        site.upload(imgPage, source_filename=pageData.filepath + "/" + pageData.filename, comment=pageData.mwcontents, ignore_warnings=True)
+        site.upload(filePage, source_filename=pageData.filepath + "/" + pageData.filename, comment=pageData.mwcontents, ignore_warnings=True)
         return True
 
 #An base class for all other page types
@@ -286,11 +303,11 @@ class DoxyMWPage(object):
     #Deletes a page (dispatched to given updateStrategy)    
     def deletePage(self, site):
         page = self.getPage(site)
-        return self.strategy.deletePage(self, page)
+        return self.strategy.deletePage(page)
         
 class CategoryPage(DoxyMWPage):
     def __init__(self, title, parent=None, hidden=False, **kwargs):
-        super().__init__(normtitle=DoxyMWTitle(title), updateStrategy=CategoryPage.getStrategy(**kwargs), **kwargs)
+        super().__init__(normtitle=DoxyMWTitle(title), updateStrategy=CategoryPage.getStrategy(**kwargs))
         if parent:
             self.addCategory(parent)
         self.hidden = hidden
@@ -330,7 +347,7 @@ class DoxygenHTMLPage(DoxyMWPage):
         globalCategory = CategoryPage(doxymwglobal.config["mediaWiki_docsCategory"],hidden=True)
     else:
         raise doxymwglobal.ConfigException("A docs category must be defined or we can't properly clean the docs up later")
-
+        
     globalNavCategory = None
     if "mediaWiki_navCategory" in doxymwglobal.config and doxymwglobal.config["mediaWiki_navCategory"] != "":
         globalNavCategory = CategoryPage(doxymwglobal.config["mediaWiki_navCategory"])
@@ -346,7 +363,7 @@ class DoxygenHTMLPage(DoxyMWPage):
     
     def __init__(self, fp, fn, type, **kwargs):
         #TODO:We set normtitle late in this class, fix this
-        super().__init__(normtitle=None, updateStrategy=DoxygenHTMLPage.getStrategy(**kwargs), **kwargs)
+        super().__init__(normtitle=None, updateStrategy=DoxygenHTMLPage.getStrategy(**kwargs))
         
         #Check validity of file
         if not os.path.isfile(fp + "/" + fn):
@@ -358,20 +375,13 @@ class DoxygenHTMLPage(DoxyMWPage):
         
         #About the page itself
         self.type = type
-        self.title = None
         self.normtitle = None
-        self.contents = None
-        self.footer = None
-        self.infobox = None
+        self.data = None
+        self.infoBoxPages = []
         self.imgs = []
         
         #Add categories
         self.addCategory(DoxygenHTMLPage.globalCategory)
-        #We only add the documentation directly to the navCategory if no transclusions are being made
-        if not doxymwglobal.config["mediaWiki_setupTransclusions"]:
-            self.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + self.type, canEdit=False))
-            if not (doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] and self.type == "MEMBERS"):
-                self.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title, canEdit=False))
         
         #Extract all the data
         self.extract()
@@ -381,69 +391,36 @@ class DoxygenHTMLPage(DoxyMWPage):
         fp = open(self.filepath + "/" + self.filename)
     
         #Extract the specific parts of the page for the wiki
-        data = self.extractInternal(fp.read())
-        
-        if not data:
+        self.data = self.extractInternal(fp.read())
+        if not self.data:
             raise doxymwglobal.DoxyMWException("Not enough content in doxygen document to create MediaWiki page in " + self.filename)
+            
+        #Set title
+        self.normtitle = DoxyMWTitle(self.data["title"], avoid=False)
         
-        #Check for invalid characters in title, may need to use a DisplayTitle to display class properly
-        self.title = data["title"]
-        self.normtitle = DoxyMWTitle(data["title"], avoid=False)
         #Sorting doesn't work too well with the original names
         #We reverse the order of the parts of the name from class to highest namespace
         self.sortKey = ".".join(reversed(self.normtitle.title.split(".")))
-        
-        self.contents = data["contents"]
-        self.footer = data["footer"]
-        
-        #Build the infobox
-        #TODO: Maybe we need a better spot for building the page contents as a whole?
-        #Nav breadcrumb sort of thing
-        navStr = ""
-        if len(data["nav"]) > 0:
-            navStr = "<div>Nav: <div class=\"doxymw_nav\">"
-            for i in range(0, len(data["nav"])):
-                tag = data["nav"][i]
-                navStr += "<div>" + tag + "</div>"
-                if i < len(data["nav"])-1: #Only add The dividers if it's not the last one
-                    navStr += "<div>V</div>"
-            navStr += "</div></div>"
-        
-        #Summary links
-        summaryStr = ""
-        if len(data["summary"]) > 0:
-            for i in range(0, len(data["summary"])):
-                tag = data["summary"][i]
-                summaryStr += "<div>" + tag + "</div>"
     
-        userLink = ""
-        if doxymwglobal.config["mediaWiki_makeUserPage"]:
-            userLink = "<div>[[" + BotUserPage().mwtitle + "]]</div>" #TODO: Needs to be moved to site
-    
-        navCategoryType = DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + self.type
-    
-        self.infobox = (
-        "<!--DoxyMWBot Infobox (modelled after Wikipedia's)-->" +
-        "<div class=\"doxymw_infobox\">" +
-        "<div class=\"head\">DoxyMWBot</div>" + 
-        "<div>Type: <span class=\"doxymw_type doxymw_type" + self.type + "\">[[:" + navCategoryType + "]]</span></div>" +
-        navStr +
-        summaryStr +
-        "<div>[[" + DoxygenHTMLPage.globalPrefix + " Heirarchy|Full Class Hierarchy]]</div>" +
-        userStr +
-        "<div>[http://doxygen.org Doxygen]</div>" +
-        "</div>" +
-        "<!--End DoxyMWBot Infobox-->")
-        
     #Converts all the data in this page to proper MediaWiki markup
     def convert(self, wikiPages):
-        #Convert gathered data into MediaWiki markup (including links using wikiPages)
-        self.contents, moreImgs = self.convertInternal(self.contents, wikiPages)
-        self.imgs += moreImgs
-        self.footer, moreImgs = self.convertInternal(self.footer, wikiPages)
-        self.imgs += moreImgs
-        self.infobox, moreImgs = self.convertInternal(self.infobox, wikiPages)
-        self.imgs += moreImgs
+        def c(key, value, wikiPages):
+            self.data[key], newImgs = self.convertInternal(value, wikiPages)
+            self.imgs += newImgs
+    
+        for key, value in self.data.items():
+            if key == "title":
+                continue
+            
+            if isinstance(value, list):
+                for v in value:
+                    c(key, v, wikiPages)
+            else:
+                c(key, value, wikiPages)
+    
+    #Add a page to the list for that will go into the info box
+    def addInfoBoxPage(self, page):
+        self.infoBoxPages.append(page)
     
     #Gets the transclusion page this DoxygenHTML page should be referenced by
     def getTransclusionPage(self):
@@ -454,8 +431,8 @@ class DoxygenHTMLPage(DoxyMWPage):
     # + title: The title of the Doxygen file, straight unicode
     # + nav: List of <a> tags from the upper breadcrumb like navigation thing
     # + summary: Links in the summary div (like "List of members, Public members, Protected members" etc...)
-    # + displayTitle: Title of the Doxygen file, with HTML entities
     # + contents: The body of the Doxygen file
+    # + footer: The html of the bottom of the page with the build time and doxygen logo
     def extractInternal(self, text):
         soup = BeautifulSoup(text)
         data = {}
@@ -473,7 +450,6 @@ class DoxygenHTMLPage(DoxyMWPage):
         if not select:
             return None
         data["title"] = select.decode_contents(formatter=None) #Straight unicode
-        data["displayTitle"] = select.decode_contents(formatter="html") #With HTML &gt;-type entities
         
         #Find the nav
         data["nav"] = []
@@ -600,9 +576,6 @@ class DoxygenHTMLPage(DoxyMWPage):
     def newPages(self):
         pages = super().newPages
         
-        if doxymwglobal.config["mediaWiki_setupTransclusions"]:
-            pages.extend(self.getTransclusionPage().newPages) #Transclusion page
-            
         for imgPageData in self.imgs:
             pages.extend(imgPageData.newPages) #Images
         return pages
@@ -615,8 +588,44 @@ class DoxygenHTMLPage(DoxyMWPage):
     #Gets the page contents
     @property
     def mwcontents(self):
+        #Do not use <img>, <a>, or other non-MediaWiki accepted HTML tags in here!
         
-        #The noinclude DO NOT EDIT + link to transclusions (if they're enabled)
+        #Build the infobox
+        #Nav breadcrumb sort of thing
+        navStr = ""
+        if len(self.data["nav"]) > 0:
+            navStr = "<div>Nav: <div class=\"doxymw_nav\">"
+            for i in range(0, len(self.data["nav"])):
+                tag = self.data["nav"][i]
+                navStr += "<div>" + tag + "</div>"
+                if i < len(self.data["nav"])-1: #Only add The dividers if it's not the last one
+                    navStr += "<div>V</div>"
+            navStr += "</div></div>"
+        
+        #Summary links
+        summaryStr = ""
+        if len(self.data["summary"]) > 0:
+            for tag in self.data["summary"]:
+                summaryStr += "<div>" + tag + "</div>"
+    
+        extraStr = ""
+        if len(self.infoBoxPages) > 0:
+            for page in self.infoBoxPages:
+                extraStr += "<div>[[" + page.mwtitle + "|" + page.normtitle.displayTitle + "]]</div>"
+    
+        navCategoryType = DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + self.type
+    
+        infobox = (
+        "<!--DoxyMWBot Infobox (modelled after Wikipedia's)-->" +
+        "<div class=\"doxymw_infobox\">" +
+        "<div class=\"head\">DoxyMWBot</div>" + 
+        "<div>Type: <span class=\"doxymw_type doxymw_type" + self.type + "\">[[:" + navCategoryType + "]]</span></div>" +
+        navStr +
+        summaryStr +
+        extraStr +
+        "</div>" +
+        "<!--End DoxyMWBot Infobox-->")
+        
         return ("<noinclude>" +
         "\n'''''Do not edit this autogenerated page.'''''" +
         "\n''Edits will be lost upon running DoxyMWBot again. " +
@@ -626,9 +635,9 @@ class DoxygenHTMLPage(DoxyMWPage):
         "</noinclude>" +
         
         #The doxygen infobox and actual page contents
-        "\n" + self.infobox +
-        "\n" + self.contents + 
-        "\n" + self.footer + "| <small>DoxyMWBot is in no way affiliated with Doxygen.</small>" +
+        "\n" + infobox +
+        "\n" + self.data["contents"] + 
+        "\n" + self.data["footer"] + "| <small>DoxyMWBot is in no way affiliated with Doxygen.</small>" +
         
         #Other stuff
         "\n<noinclude>" +
@@ -657,16 +666,12 @@ class TransclusionPage(DoxyMWPage):
         return FullPageStrategy(checkPageEdit=checkPageEdit, **kwargs)
 
     def __init__(self, normtitle, target, **kwargs):
-        super().__init__(normtitle=normtitle, updateStrategy=TransclusionPage.getStrategy(**kwargs), **kwargs)
+        super().__init__(normtitle=normtitle, updateStrategy=TransclusionPage.getStrategy(**kwargs))
         self.normtitle = normtitle #Basic title of the transclusion page, same as doxygen docs page title
         self.target = target #Target DoxyMWPage of this transclusion page
         self.sortKey = self.target.sortKey
         
         self.addCategory(TransclusionPage.globalCategory)
-        #Add to globalNavCategory
-        self.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + self.target.type, canEdit=False))
-        if not (doxymwglobal.config["mediaWiki_navCategoryExcludeMembers"] and self.target.type == "MEMBERS"):
-            self.addCategory(CategoryPage(DoxygenHTMLPage.globalNavCategory.normtitle.title, canEdit=False))
     
     @property
     def mwtitle(self):
@@ -707,7 +712,7 @@ class ImagePage(DoxyMWPage):
         fp = open(self.filepath + "/" + self.filename, "rb")
         sha1 = hashlib.sha1()
         sha1.update(fp.read())
-        self.sha1 = hexdigest()
+        self.sha1 = sha1.hexdigest()
     
     @property
     def mwtitle(self):
@@ -724,8 +729,8 @@ class BotUserPage(DoxyMWPage):
         return FullPageStrategy(**kwargs)
 
     def __init__(self, site, **kwargs):
-        super().__init__(normtitle=DoxyMWTitle(site.user()), updateStrategy=BotUserPage.getStrategy(**kwargs), **kwargs)
-        self.addCategory(DoxygetHTMLPage.globalCategory)
+        super().__init__(normtitle=DoxyMWTitle(site.user()), updateStrategy=BotUserPage.getStrategy(**kwargs))
+        self.addCategory(DoxygenHTMLPage.globalCategory)
         
         if not os.path.isfile("./README.md"):
             raise doxymwglobal.DoxyMWException("File " + file + " does not exist")
@@ -753,7 +758,7 @@ class StylesPage(DoxyMWPage):
         return SectionStrategy(startDelim="/*START DOXYMWBOT*/", endDelim="/*END DOXYMWBOT*/", **kwargs)
 
     def __init__(self, **kwargs):
-        super().__init__(normtitle=DoxyMWTitle("MediaWiki:Common.css"), updateStrategy=StylesPage.getStrategy(**kwargs), **kwargs)
+        super().__init__(normtitle=DoxyMWTitle("MediaWiki:Common.css"), updateStrategy=StylesPage.getStrategy(**kwargs))
         self.files = ["./modifiedDoxygenStyles.css", "./doxymwbotStyles.css"]
         
         for file in self.files:

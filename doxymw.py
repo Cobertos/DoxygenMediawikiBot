@@ -214,12 +214,7 @@ def main():
         
         #Debug the first portion, outputs everything to an html file
         if "doxygen" in option["debug"]:
-            debugPath = doxymwglobal.config["doxygen_tmpPath"] + "/debug"
-            try:
-                os.mkdir(debugPath)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise #Rethrow if not a folder already exists error
+            debugPath = doxymwglobal.debugPath()
             for page in wikiPages:
                 doxymwglobal.msg(doxymwglobal.msgType.debug, "Debug output " + page.filename)
                 fp = open(debugPath + "/" + page.filename, 'w', errors="replace")

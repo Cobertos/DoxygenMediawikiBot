@@ -1,5 +1,4 @@
 #Todo:
-#Fix the infobox
 
 #Stuff I'd like to add but probably won't (not worth the effort for the gain at the current time):
 #Handle old documents that are deleted better (perhaps present a message if a transclusion is detected or add their transclusions to a category)
@@ -10,8 +9,6 @@
 #    We'd have to make fake categories for the documentation that redirects to the real categories which is populated with transclusions if we want this work (not work the effort tho)
 #Make categories and things that involve cross page references (aside from pages that generate more than one page, and those references) the responsibility of the site
 #   This then allows the responsbility of how we structure everything over the site to be the site's responsibility (important for deleting)
-#Make sure that we can take pages and stick them in empty objects (like an __init__ for just pages), so we can properly .delete pages
-#   References the chang before it in thislist. Also remove special in generator because its messing up theway we make everything
 #Unimplemented stuff in global
 #fix all the TODOS in the code
 #The javascript for the box hiding?

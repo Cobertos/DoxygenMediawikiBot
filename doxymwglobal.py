@@ -106,6 +106,15 @@ def getUsage():
 def printHelp():
     print(getUsage())
 
+def debugPath():
+    debugPath = doxymwglobal.config["doxygen_tmpPath"] + "/debug"
+    try:
+        os.makedirs(debugPath)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise #Rethrow if not a folder already exists error
+    return debugPath
+    
 #Exceptions
 class DoxyMWException(Exception):
     pass
