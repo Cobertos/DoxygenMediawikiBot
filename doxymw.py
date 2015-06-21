@@ -137,12 +137,14 @@ def readDoxygenHTMLDocs():
             for other in params["doxygen_otherFiles"]:
                 if fileName == other:
                     fileDoxyType = "OTHER"
+                    break
             
             #Check type
             if not fileDoxyType:
                 for regex, type in params["doxygen_filePrefixes"].items():
                     if re.search(regex, fileName):
                         fileDoxyType = type
+                        break
             
             #Filter out the html files without type
             if fileDoxyType == None:

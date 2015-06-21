@@ -404,19 +404,21 @@ class DoxygenHTMLPage(DoxyMWPage):
     
     #Converts all the data in this page to proper MediaWiki markup
     def convert(self, wikiPages):
-        def c(key, value, wikiPages):
-            self.data[key], newImgs = self.convertInternal(value, wikiPages)
-            self.imgs += newImgs
-    
         for key, value in self.data.items():
             if key == "title":
                 continue
             
             if isinstance(value, list):
+                values = []
                 for v in value:
-                    c(key, v, wikiPages)
+                    newValue, newImgs = self.convertInternal(v, wikiPages)
+                    values.append(newValue)
+                    self.imgs += newImgs
+                    
+                self.data[key] = values
             else:
-                c(key, value, wikiPages)
+                self.data[key], newImgs = self.convertInternal(value, wikiPages)
+                self.imgs += newImgs
     
     #Add a page to the list for that will go into the info box
     def addInfoBoxPage(self, page):
@@ -613,7 +615,7 @@ class DoxygenHTMLPage(DoxyMWPage):
             for page in self.infoBoxPages:
                 extraStr += "<div>[[" + page.mwtitle + "|" + page.normtitle.displayTitle + "]]</div>"
     
-        navCategoryType = DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + self.type
+        navCategoryType = "Category:" + DoxygenHTMLPage.globalNavCategory.normtitle.title + " " + self.type
     
         infobox = (
         "<!--DoxyMWBot Infobox (modelled after Wikipedia's)-->" +
