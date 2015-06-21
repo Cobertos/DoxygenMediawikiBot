@@ -13,6 +13,7 @@
 #fix all the TODOS in the code
 #The javascript for the box hiding?
 #Add back the ...*...... progress bar in doxymw.py instead of the "converting: ___"
+#Do this http://stackoverflow.com/questions/9949633/suppressing-print-as-stdout-python for thkngs that pring in pywikibot and doxygen
 
 #Note:
 #I'd rather not worry about integrating with current documentation on a and just stick to making everything in our own bubble and having the user populate it from
