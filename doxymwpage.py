@@ -549,14 +549,14 @@ class DoxygenHTMLPage(DoxyMWPage):
                 else: #Something else
                     doxymwglobal.msg(doxymwglobal.msgType.debug, "Unhandled link with unknown contents")
                     newStr = ""
+                    
+                a.replace_with(newStr)
             
             #A named anchor
-            if "name" in a.attrs:
+            elif "name" in a.attrs:
                 newStr = soup.new_tag("span")
                 newStr.attrs["id"] = a.attrs["name"] #Named anchors in MediaWiki just use the id
                 newStr.attrs["style"] = "width:0;height:0;font-size:0;"
-        
-            a.replace_with(newStr)
             
         #Convert and store <img>s
         for img in soup("img"):
@@ -747,10 +747,10 @@ class BotUserPage(DoxyMWPage):
         readme = "\n" + fp.read() + "\n"
     
         return (
-            "Hello, I am DoxyMWBot >:]" +
+            "<nowiki>Hello, I am DoxyMWBot >:]" +
             "\n" + "This project is in no way affiliated with Doxygen" +
             "\n" + "More stuff will go here eventually, a FAQ, better description, etc" +
-            readme + super().mwcontents
+            readme + "</nowiki>" + super().mwcontents
         )
         
 class StylesPage(DoxyMWPage):

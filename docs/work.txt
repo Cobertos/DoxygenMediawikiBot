@@ -14,7 +14,12 @@
 #The javascript for the box hiding?
 #Add back the ...*...... progress bar in doxymw.py instead of the "converting: ___"
 #Do this http://stackoverflow.com/questions/9949633/suppressing-print-as-stdout-python for thkngs that pring in pywikibot and doxygen
-#Add some sort of canDelete and make sure it has nothing to do with canEdit
+#Add some sort of canDelete and make sure it has nothing to do with canEdit ( why user nav categories are overwritten now instead of left as is)
+#Add image maps on inheritance diagrams (there's a MediaWiki extension for this I'm pretty sure)
+#Fix the user page (fix the formatting and markdown to MediaWiki or make a separate file?)
+#Members lists being added to main NavCategory when they shouldn't be
+#If no user page generate default user page
+#Link to nav category fromthe sidebar?
 
 #Note:
 #I'd rather not worry about integrating with current documentation on a and just stick to making everything in our own bubble and having the user populate it from
