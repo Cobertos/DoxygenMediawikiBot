@@ -510,6 +510,7 @@ class DoxygenHTMLPage(DoxyMWPage):
         #Convert <a>s
         for a in soup("a"):
             #A normal link
+            newStr = None
             if "href" in a.attrs:
                 href = a.attrs["href"]
                 #Get link and fragment portions of href
@@ -549,14 +550,21 @@ class DoxygenHTMLPage(DoxyMWPage):
                 else: #Something else
                     doxymwglobal.msg(doxymwglobal.msgType.debug, "Unhandled link with unknown contents")
                     newStr = ""
-                    
-                a.replace_with(newStr)
             
-            #A named anchor
-            elif "name" in a.attrs:
+            #A named anchor or anchor with ID
+            elif "name" in a.attrs or "id" in a.attrs:
                 newStr = soup.new_tag("span")
-                newStr.attrs["id"] = a.attrs["name"] #Named anchors in MediaWiki just use the id
+                #Named anchors or ID'd anchors just become spans with IDs
+                if "name" in a.attrs:
+                    newStr.attrs["id"] = a.attrs["name"]
+                else: #"id" in a.attrs:
+                    newStr.attrs["id"] = a.attrs["id"]
                 newStr.attrs["style"] = "width:0;height:0;font-size:0;"
+                
+            else:
+                newStr = ""
+                
+            a.replace_with(newStr)
             
         #Convert and store <img>s
         for img in soup("img"):
