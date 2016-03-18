@@ -4,15 +4,17 @@ A python bot using PyWikibot and Doxygen to put Doxygen docs onto a MediaWiki wi
 Licensed under the MIT License (should be included with the source code in LICENSE.txt)
 
 
-SETUP:
-You must create the family for your PyWikibot as described in their documentation. You must also run the 
-You must also use pip (pythons package manager) to download:
-BeautifulSoup4
-PyWikibot
+### SETUP:
 
-Configure your options in the `config` dictionary in `doxymwglobal.py`
+1. Consider setting up a virtual environment for your project installation
+1. Install the required Python modules through pip or however (`setup.bat` originally did this but it's out of date)
+ 1. PyWikibot (https://github.com/wikimedia/pywikibot-core)
+ 2. BeautifulSoup4 (http://www.crummy.com/software/BeautifulSoup/)
+2. Create the family for your PyWikibot as described in their documentation
+3. Configure your options in the `config` dictionary in `doxymwglobal.py`
 
-USAGE:
+### USAGE:
+
 ```
 USAGE: python doxymw.py <command> [<opts>]
 
@@ -28,11 +30,14 @@ USAGE: python doxymw.py <command> [<opts>]
   -h,   --help          Prints help message
 ```
 
-FAQ:
-Why do some page names have '!' characters in them?
+### FAQ:
+
+#### Why do some page names have '!' characters in them?
+
 Page titles in MediaWiki are not allowed to contain a few characters for example '<', '>', and '?'.
 To compensate for this all invalid characters are changed to '!'s and '_'s to ' ' by MediaWiki default
 MediaWiki's `{{DISPLAYTITLE:_}}` magic word is also used when available to show the correct page title on the page (but the actual page link and title in the database will contain '!'s)
 
-Find a bug? Encounter an error?
+#### Find a bug? Encounter an error?
+
 Send me a message on GitHub or somewhere
