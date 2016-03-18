@@ -10,7 +10,7 @@ Licensed under the MIT License (should be included with the source code in LICEN
 1. Install the required Python modules through pip or however (`setup.bat` originally did this but it's out of date)
  1. PyWikibot (https://github.com/wikimedia/pywikibot-core)
  2. BeautifulSoup4 (http://www.crummy.com/software/BeautifulSoup/)
-2. Create the family for your PyWikibot as described in their documentation
+2. Create the family for your PyWikibot as described in their documentation (https://www.mediawiki.org/wiki/Manual:Pywikibot/Use_on_third-party_wikis)
 3. Configure your options in the `config` dictionary in `doxymwglobal.py`
 
 ### USAGE:
